@@ -96,6 +96,15 @@ interface SurveyQuestion {
   highLabel?: string;
 }
 
+interface SurveyDefinition {
+  id: string;
+  name: string;
+  description: string;
+  audience: 'Trabajador' | 'Jefe' | 'RRHH';
+  status: 'Activa' | 'Borrador';
+  questions: SurveyQuestion[];
+}
+
 const apiBase = 'http://127.0.0.1:8081/api/index.php';
 
 @Component({
@@ -143,96 +152,18 @@ export class App {
   protected activeCycle = 'Evaluacion anual 2026';
   protected reminderChannel = 'Correo y WhatsApp';
   protected reminderMessage = '';
-  protected surveyName = 'Encuesta de clima laboral';
-  protected surveyQuestions: SurveyQuestion[] = [
-    ...climateQuestions.map((question) => ({
-      id: question.id,
-      section: question.dimension,
-      text: question.text,
-      responseType: 'likert' as ResponseType,
-      required: true,
-      options: ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'],
-    })),
-    ...scaleQuestions.map((question) => ({
-      id: question.id,
-      section: question.dimension,
-      text: question.text,
-      responseType: 'scale' as ResponseType,
-      required: true,
-      lowLabel: question.lowLabel,
-      highLabel: question.highLabel,
-    })),
-    ...openQuestions.map((question) => ({
-      id: question.id,
-      section: 'Preguntas abiertas',
-      text: question.text,
-      responseType: 'long_text' as ResponseType,
-      required: false,
-    })),
+  protected surveys: SurveyDefinition[] = [
     {
-      id: 54,
-      section: 'Seleccion multiple',
-      text: 'En que aspectos deberia mejorar para que recomiende mas a DACHASAC? (Elija hasta 3 opciones)',
-      responseType: 'multiple_choice' as ResponseType,
-      required: false,
-      options: [
-        'Ambiente laboral',
-        'Relacion con mis companeros de trabajo',
-        'Posibilidad de aprender y desarrollarme',
-        'Vida integralmente equilibrada',
-        'Oportunidad de generar valor/impacto con mi trabajo',
-        'Relacion con mi jefe',
-        'Reconocimiento',
-        'Liderazgo organizacional',
-        'Cultura',
-        'Condiciones de trabajo',
-        'Identificacion con el proposito de la organizacion',
-        'Beneficios no remunerativos',
-        'Compensacion',
-        'Colaboracion e interaccion con otras areas',
-        'Estabilidad laboral',
-        'Cercania y accesibilidad al lugar del trabajo',
-        'Programas de Recursos Humanos',
-      ],
-    },
-    {
-      id: 55,
-      section: 'Seleccion multiple',
-      text: 'Que aspectos consideras que deberian mejorar en tu area?',
-      responseType: 'multiple_choice' as ResponseType,
-      required: false,
-      options: [
-        'Ningun aspecto a mejorar',
-        'Companerismo entre los miembros del equipo',
-        'Posibilidad de aprender, retos profesionales',
-        'Ambiente de trabajo',
-        'Relacion con mi jefe',
-        'Comunicacion entre miembros del equipo a todo nivel',
-        'Horarios y jornada laboral',
-        'Mejor experiencia para clientes internos y externos',
-        'Trato justo sin importar edad, genero o puesto',
-      ],
-    },
-    {
-      id: 56,
-      section: 'Seleccion multiple',
-      text: 'Que aspectos valoras de tu area?',
-      responseType: 'multiple_choice' as ResponseType,
-      required: false,
-      options: [
-        'Companerismo entre los miembros del equipo',
-        'Tareas de alto impacto',
-        'Posibilidad de aprender, retos profesionales',
-        'Reconocimiento',
-        'Ambiente de trabajo',
-        'Relacion con mi jefe',
-        'Comunicacion fluida entre miembros del equipo',
-        'Horarios y jornada laboral',
-        'Trato justo al colaborador',
-        'Se toman en cuenta opiniones, ideas y sugerencias',
-      ],
+      id: 'clima-laboral',
+      name: 'Encuesta de clima laboral',
+      description: 'Encuesta para trabajadores basada en los libros de clima laboral.',
+      audience: 'Trabajador',
+      status: 'Activa',
+      questions: this.defaultClimateSurveyQuestions(),
     },
   ];
+  protected activeSurveyId = 'clima-laboral';
+  protected editingSurvey = false;
 
   protected climateEmployee: Record<string, string> = {
     sede: 'CALLAO',
@@ -368,29 +299,30 @@ export class App {
   }
 
   protected likertSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'likert');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'likert');
   }
 
   protected singleChoiceSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'single_choice');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'single_choice');
   }
 
   protected multipleChoiceSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'multiple_choice');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'multiple_choice');
   }
 
   protected scaleSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'scale');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'scale');
   }
 
   protected textSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'short_text' || question.responseType === 'long_text');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'short_text' || question.responseType === 'long_text');
   }
 
   protected addSurveyQuestion(): void {
-    const nextId = Math.max(0, ...this.surveyQuestions.map((question) => question.id)) + 1;
-    this.surveyQuestions = [
-      ...this.surveyQuestions,
+    const survey = this.activeSurvey();
+    const nextId = Math.max(0, ...survey.questions.map((question) => question.id)) + 1;
+    survey.questions = [
+      ...survey.questions,
       {
         id: nextId,
         section: 'Nueva seccion',
@@ -405,16 +337,18 @@ export class App {
   }
 
   protected duplicateSurveyQuestion(question: SurveyQuestion): void {
-    const nextId = Math.max(0, ...this.surveyQuestions.map((item) => item.id)) + 1;
-    this.surveyQuestions = [
-      ...this.surveyQuestions,
+    const survey = this.activeSurvey();
+    const nextId = Math.max(0, ...survey.questions.map((item) => item.id)) + 1;
+    survey.questions = [
+      ...survey.questions,
       { ...question, id: nextId, text: `${question.text} (copia)` },
     ];
     this.saveSurveyBuilder();
   }
 
   protected deleteSurveyQuestion(questionId: number): void {
-    this.surveyQuestions = this.surveyQuestions.filter((question) => question.id !== questionId);
+    const survey = this.activeSurvey();
+    survey.questions = survey.questions.filter((question) => question.id !== questionId);
     delete this.climateLikert[questionId];
     delete this.climateScales[questionId];
     delete this.climateOpen[questionId];
@@ -464,7 +398,7 @@ export class App {
   }
 
   protected choiceSurveyQuestions(): SurveyQuestion[] {
-    return this.surveyQuestions.filter((question) => question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice');
+    return this.activeSurveyQuestions().filter((question) => question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice');
   }
 
   protected likertValue(option: string | undefined): number {
@@ -472,9 +406,79 @@ export class App {
   }
 
   protected saveSurveyBuilder(): void {
-    localStorage.setItem('rrhh_survey_builder', JSON.stringify({ name: this.surveyName, questions: this.surveyQuestions }));
+    localStorage.setItem('rrhh_survey_builder', JSON.stringify({ surveys: this.surveys, activeSurveyId: this.activeSurveyId }));
     this.ensureSurveyAnswerDefaults();
     this.message.set('Preguntas de la encuesta actualizadas.');
+  }
+
+  protected surveyTypeCount(survey: SurveyDefinition, type: ResponseType): number {
+    return survey.questions.filter((question) => question.responseType === type).length;
+  }
+
+  protected openSurveyEditor(surveyId: string): void {
+    this.activeSurveyId = surveyId;
+    this.editingSurvey = true;
+    this.ensureSurveyAnswerDefaults();
+  }
+
+  protected closeSurveyEditor(): void {
+    this.editingSurvey = false;
+    this.saveSurveyBuilder();
+  }
+
+  protected updateActiveSurveyName(value: string): void {
+    this.activeSurvey().name = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected updateActiveSurveyDescription(value: string): void {
+    this.activeSurvey().description = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected updateActiveSurveyAudience(value: SurveyDefinition['audience']): void {
+    this.activeSurvey().audience = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected updateActiveSurveyStatus(value: SurveyDefinition['status']): void {
+    this.activeSurvey().status = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected addSurveyDraft(): void {
+    const nextNumber = this.surveys.length + 1;
+    const id = `encuesta-${Date.now()}`;
+    this.surveys = [
+      ...this.surveys,
+      {
+        id,
+        name: `Nueva encuesta ${nextNumber}`,
+        description: 'Encuesta en borrador para configurar.',
+        audience: 'Trabajador',
+        status: 'Borrador',
+        questions: [
+          {
+            id: 1,
+            section: 'General',
+            text: 'Nueva pregunta',
+            responseType: 'single_choice',
+            required: true,
+            options: ['Opcion 1'],
+          },
+        ],
+      },
+    ];
+    this.openSurveyEditor(id);
+    this.saveSurveyBuilder();
+  }
+
+  protected activeSurvey(): SurveyDefinition {
+    return this.surveys.find((survey) => survey.id === this.activeSurveyId) ?? this.surveys[0];
+  }
+
+  protected activeSurveyQuestions(): SurveyQuestion[] {
+    return this.activeSurvey().questions;
   }
 
   protected competenciesByGroup(): { group: string; items: Competency[] }[] {
@@ -613,16 +617,31 @@ export class App {
   private loadSurveyBuilder(): void {
     try {
       const stored = JSON.parse(localStorage.getItem('rrhh_survey_builder') ?? 'null');
-      if (stored?.name && Array.isArray(stored?.questions)) {
-        this.surveyName = stored.name;
-        this.surveyQuestions = stored.questions.map((question: SurveyQuestion) => ({
-          ...question,
-          options: this.normalizedOptions(question),
+      if (Array.isArray(stored?.surveys)) {
+        this.surveys = stored.surveys.map((survey: SurveyDefinition) => ({
+          ...survey,
+          questions: this.hydrateSurveyQuestions(survey.id, survey.questions),
         }));
+        this.activeSurveyId = stored.activeSurveyId ?? this.surveys[0]?.id ?? 'clima-laboral';
+      } else if (stored?.name && Array.isArray(stored?.questions)) {
+        this.surveys[0].name = stored.name;
+        this.surveys[0].questions = this.hydrateSurveyQuestions('clima-laboral', stored.questions);
       }
     } catch {
       return;
     }
+  }
+
+  private hydrateSurveyQuestions(surveyId: string, questions: SurveyQuestion[]): SurveyQuestion[] {
+    const normalized = questions.map((question) => ({
+      ...question,
+      options: this.normalizedOptions(question),
+    }));
+    if (surveyId !== 'clima-laboral') return normalized;
+
+    const existingIds = new Set(normalized.map((question) => question.id));
+    const missingBaseQuestions = this.defaultClimateSurveyQuestions().filter((question) => !existingIds.has(question.id));
+    return [...normalized, ...missingBaseQuestions];
   }
 
   private normalizedOptions(question: SurveyQuestion): string[] | undefined {
@@ -632,7 +651,7 @@ export class App {
   }
 
   private ensureSurveyAnswerDefaults(): void {
-    for (const question of this.surveyQuestions) {
+    for (const question of this.activeSurveyQuestions()) {
       if (question.responseType === 'likert') {
         question.options = question.options?.length ? question.options : [...this.likertDefaultOptions];
         this.climateLikert[question.id] = this.climateLikert[question.id] || question.options[3] || question.options[0];
@@ -707,5 +726,97 @@ export class App {
     const valid = values.filter((value) => Number.isFinite(value) && value > 0);
     if (!valid.length) return 0;
     return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
+  }
+
+  private defaultClimateSurveyQuestions(): SurveyQuestion[] {
+    return [
+      ...climateQuestions.map((question) => ({
+        id: question.id,
+        section: question.dimension,
+        text: question.text,
+        responseType: 'likert' as ResponseType,
+        required: true,
+        options: ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'],
+      })),
+      ...scaleQuestions.map((question) => ({
+        id: question.id,
+        section: question.dimension,
+        text: question.text,
+        responseType: 'scale' as ResponseType,
+        required: true,
+        lowLabel: question.lowLabel,
+        highLabel: question.highLabel,
+      })),
+      ...openQuestions.map((question) => ({
+        id: question.id,
+        section: 'Preguntas abiertas',
+        text: question.text,
+        responseType: 'long_text' as ResponseType,
+        required: false,
+      })),
+      {
+        id: 54,
+        section: 'Seleccion multiple',
+        text: 'En que aspectos deberia mejorar para que recomiende mas a DACHASAC? (Elija hasta 3 opciones)',
+        responseType: 'multiple_choice' as ResponseType,
+        required: false,
+        options: [
+          'Ambiente laboral',
+          'Relacion con mis companeros de trabajo',
+          'Posibilidad de aprender y desarrollarme',
+          'Vida integralmente equilibrada',
+          'Oportunidad de generar valor/impacto con mi trabajo',
+          'Relacion con mi jefe',
+          'Reconocimiento',
+          'Liderazgo organizacional',
+          'Cultura',
+          'Condiciones de trabajo',
+          'Identificacion con el proposito de la organizacion',
+          'Beneficios no remunerativos',
+          'Compensacion',
+          'Colaboracion e interaccion con otras areas',
+          'Estabilidad laboral',
+          'Cercania y accesibilidad al lugar del trabajo',
+          'Programas de Recursos Humanos',
+        ],
+      },
+      {
+        id: 55,
+        section: 'Seleccion multiple',
+        text: 'Que aspectos consideras que deberian mejorar en tu area?',
+        responseType: 'multiple_choice' as ResponseType,
+        required: false,
+        options: [
+          'Ningun aspecto a mejorar',
+          'Companerismo entre los miembros del equipo',
+          'Posibilidad de aprender, retos profesionales',
+          'Ambiente de trabajo',
+          'Relacion con mi jefe',
+          'Comunicacion entre miembros del equipo a todo nivel',
+          'Horarios y jornada laboral',
+          'Mejor experiencia para clientes internos y externos',
+          'Trato justo sin importar edad, genero o puesto',
+        ],
+      },
+      {
+        id: 56,
+        section: 'Seleccion multiple',
+        text: 'Que aspectos valoras de tu area?',
+        responseType: 'multiple_choice' as ResponseType,
+        required: false,
+        options: [
+          'Companerismo entre los miembros del equipo',
+          'Tareas de alto impacto',
+          'Posibilidad de aprender, retos profesionales',
+          'Reconocimiento',
+          'Ambiente de trabajo',
+          'Relacion con mi jefe',
+          'Comunicacion fluida entre miembros del equipo',
+          'Horarios y jornada laboral',
+          'Trato justo al colaborador',
+          'Se toman en cuenta opiniones, ideas y sugerencias',
+        ],
+      },
+    ];
   }
 }

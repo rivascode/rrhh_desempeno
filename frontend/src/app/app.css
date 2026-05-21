@@ -861,6 +861,91 @@ textarea {
   background: #dff4f7;
 }
 
+.survey-module {
+  display: grid;
+  gap: 12px;
+}
+
+.survey-list-head {
+  margin-bottom: 0;
+}
+
+.survey-list {
+  display: grid;
+  gap: 10px;
+}
+
+.survey-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #dfe7ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.survey-row h3 {
+  margin-bottom: 6px;
+}
+
+.survey-row p {
+  margin-bottom: 10px;
+  color: #697889;
+}
+
+.survey-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.survey-meta span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eef4f8;
+  color: #26394d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: 28px;
+  background: rgba(12, 25, 38, .54);
+  overflow: auto;
+}
+
+.editor-window {
+  width: min(1180px, 100%);
+  margin: 0;
+  padding: 18px;
+  box-shadow: 0 28px 70px rgba(10, 22, 35, .28);
+}
+
+.editor-titlebar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.survey-settings {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(260px, 1.4fr) minmax(150px, .6fr) minmax(140px, .5fr);
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #fff;
+  border: 1px solid #dfe7ef;
+  border-radius: 8px;
+}
+
 .forms-canvas {
   position: relative;
   max-width: 1040px;
@@ -1117,8 +1202,14 @@ code {
 
   .builder-card,
   .builder-main-row,
-  .builder-grid {
+  .builder-grid,
+  .survey-settings,
+  .survey-row {
     grid-template-columns: 1fr;
+  }
+
+  .survey-row .primary {
+    justify-self: start;
   }
 
   .floating-tools {
@@ -1284,5 +1375,13 @@ code {
   .likert-chart span {
     font-size: 11px;
     overflow-wrap: anywhere;
+  }
+
+  .editor-overlay {
+    padding: 10px;
+  }
+
+  .editor-window {
+    padding: 10px;
   }
 }

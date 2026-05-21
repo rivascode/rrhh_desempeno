@@ -143,7 +143,7 @@
       <form class="form-view" (ngSubmit)="submitClimate()">
         <div class="section-heading">
           <div>
-            <h2>{{ surveyName }}</h2>
+            <h2>{{ activeSurvey().name }}</h2>
             <p>Formulario basado en las hojas ESTRUCTURA, RESPUESTAS y RESULTADOS del libro de clima laboral.</p>
           </div>
           <span class="score-pill">{{ climatePreview() }}%</span>
@@ -393,86 +393,136 @@
       </section>
 
       <section class="dashboard">
-        <article class="panel form-builder">
-          <div class="forms-canvas">
-          <div class="builder-head">
+        <article class="panel survey-module">
+          <div class="builder-head survey-list-head">
             <div>
-              <h2>Editor de encuestas</h2>
-              <p>RRHH puede editar, agregar, duplicar o eliminar preguntas y definir el tipo de respuesta como en Google Forms.</p>
+              <h2>Modulo de encuestas</h2>
+              <p>RRHH administra las encuestas desde este listado. Cada encuesta se edita en una ventana independiente.</p>
             </div>
-            <button class="primary" type="button" (click)="addSurveyQuestion()">Agregar pregunta</button>
+            <button class="primary" type="button" (click)="addSurveyDraft()">Nueva encuesta</button>
           </div>
 
-          <label class="survey-name">Nombre de encuesta
-            <input name="surveyName" [(ngModel)]="surveyName" (change)="saveSurveyBuilder()" />
-          </label>
-
-          <div class="builder-list">
-            @for (question of surveyQuestions; track question.id) {
-              <article class="builder-card">
-                <div class="drag-handle">::</div>
-                <div class="question-number">{{ question.id }}</div>
-                <div class="builder-fields">
-                  <div class="builder-main-row">
-                    <label class="question-title-field">Pregunta
-                      <input [name]="'builderText' + question.id" [(ngModel)]="question.text" (change)="saveSurveyBuilder()" placeholder="Escribe la pregunta" />
-                    </label>
-                    <label>Tipo de respuesta
-                      <select [name]="'builderType' + question.id" [(ngModel)]="question.responseType" (change)="updateSurveyQuestionType(question)">
-                        @for (type of responseTypes; track type.value) {
-                          <option [ngValue]="type.value">{{ type.label }}</option>
-                        }
-                      </select>
-                    </label>
-                  </div>
-                  <label>Seccion
-                    <input [name]="'builderSection' + question.id" [(ngModel)]="question.section" (change)="saveSurveyBuilder()" />
-                  </label>
-
-                  @if (question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice') {
-                    <div class="option-editor">
-                      @for (option of question.options ?? []; track $index) {
-                        <div class="option-line">
-                          <span class="option-symbol">{{ question.responseType === 'multiple_choice' ? '□' : '○' }}</span>
-                          <input [name]="'option' + question.id + '-' + $index" [(ngModel)]="question.options![$index]" (change)="saveSurveyBuilder()" />
-                          <button class="icon-button" type="button" (click)="deleteQuestionOption(question, $index)">×</button>
-                        </div>
-                      }
-                      <button class="link-button" type="button" (click)="addQuestionOption(question)">Agregar opcion</button>
-                    </div>
-                  }
-
-                  @if (question.responseType === 'scale') {
-                    <div class="builder-grid">
-                      <label>Etiqueta minima
-                        <input [name]="'lowLabel' + question.id" [(ngModel)]="question.lowLabel" (change)="saveSurveyBuilder()" />
-                      </label>
-                      <label>Etiqueta maxima
-                        <input [name]="'highLabel' + question.id" [(ngModel)]="question.highLabel" (change)="saveSurveyBuilder()" />
-                      </label>
-                    </div>
-                  }
-
-                  <div class="builder-actions">
-                    <label class="toggle">
-                      <input type="checkbox" [name]="'required' + question.id" [(ngModel)]="question.required" (change)="saveSurveyBuilder()" />
-                      <span>Requerida</span>
-                    </label>
-                    <button class="ghost" type="button" (click)="duplicateSurveyQuestion(question)">Duplicar</button>
-                    <button class="danger" type="button" (click)="deleteSurveyQuestion(question.id)">Eliminar</button>
+          <div class="survey-list">
+            @for (survey of surveys; track survey.id) {
+              <article class="survey-row">
+                <div>
+                  <h3>{{ survey.name }}</h3>
+                  <p>{{ survey.description }}</p>
+                  <div class="survey-meta">
+                    <span>{{ survey.audience }}</span>
+                    <span>{{ survey.status }}</span>
+                    <span>{{ survey.questions.length }} preguntas</span>
+                    <span>{{ surveyTypeCount(survey, 'likert') }} Likert</span>
+                    <span>{{ surveyTypeCount(survey, 'multiple_choice') }} multiple</span>
                   </div>
                 </div>
+                <button class="primary" type="button" (click)="openSurveyEditor(survey.id)">Editar</button>
               </article>
             }
           </div>
-          <div class="floating-tools">
-            <button type="button" title="Agregar pregunta" (click)="addSurveyQuestion()">+</button>
-            <button type="button" title="Agregar texto">Tt</button>
-            <button type="button" title="Agregar imagen">▧</button>
-          </div>
-          </div>
         </article>
 
+        @if (editingSurvey) {
+          <div class="editor-overlay">
+            <article class="panel form-builder editor-window">
+              <div class="forms-canvas">
+                <div class="builder-head editor-titlebar">
+                  <div>
+                    <h2>Editar encuesta</h2>
+                    <p>Configure preguntas, secciones, tipo de respuesta, opciones y obligatoriedad.</p>
+                  </div>
+                  <button class="ghost" type="button" (click)="closeSurveyEditor()">Cerrar</button>
+                </div>
+
+                <div class="survey-settings">
+                  <label>Nombre de encuesta
+                    <input name="surveyName" [ngModel]="activeSurvey().name" (ngModelChange)="updateActiveSurveyName($event)" />
+                  </label>
+                  <label>Descripcion
+                    <input name="surveyDescription" [ngModel]="activeSurvey().description" (ngModelChange)="updateActiveSurveyDescription($event)" />
+                  </label>
+                  <label>Portal
+                    <select name="surveyAudience" [ngModel]="activeSurvey().audience" (ngModelChange)="updateActiveSurveyAudience($event)">
+                      <option value="Trabajador">Trabajador</option>
+                      <option value="Jefe">Jefe</option>
+                      <option value="RRHH">RRHH</option>
+                    </select>
+                  </label>
+                  <label>Estado
+                    <select name="surveyStatus" [ngModel]="activeSurvey().status" (ngModelChange)="updateActiveSurveyStatus($event)">
+                      <option value="Activa">Activa</option>
+                      <option value="Borrador">Borrador</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="builder-list">
+                  @for (question of activeSurveyQuestions(); track question.id) {
+                    <article class="builder-card">
+                      <div class="drag-handle">::</div>
+                      <div class="question-number">{{ question.id }}</div>
+                      <div class="builder-fields">
+                        <div class="builder-main-row">
+                          <label class="question-title-field">Pregunta
+                            <input [name]="'builderText' + question.id" [(ngModel)]="question.text" (change)="saveSurveyBuilder()" placeholder="Escribe la pregunta" />
+                          </label>
+                          <label>Tipo de respuesta
+                            <select [name]="'builderType' + question.id" [(ngModel)]="question.responseType" (change)="updateSurveyQuestionType(question)">
+                              @for (type of responseTypes; track type.value) {
+                                <option [ngValue]="type.value">{{ type.label }}</option>
+                              }
+                            </select>
+                          </label>
+                        </div>
+                        <label>Seccion
+                          <input [name]="'builderSection' + question.id" [(ngModel)]="question.section" (change)="saveSurveyBuilder()" />
+                        </label>
+
+                        @if (question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice') {
+                          <div class="option-editor">
+                            @for (option of question.options ?? []; track $index) {
+                              <div class="option-line">
+                                <span class="option-symbol">{{ question.responseType === 'multiple_choice' ? '[ ]' : '( )' }}</span>
+                                <input [name]="'option' + question.id + '-' + $index" [(ngModel)]="question.options![$index]" (change)="saveSurveyBuilder()" />
+                                <button class="icon-button" type="button" (click)="deleteQuestionOption(question, $index)">x</button>
+                              </div>
+                            }
+                            <button class="link-button" type="button" (click)="addQuestionOption(question)">Agregar opcion</button>
+                          </div>
+                        }
+
+                        @if (question.responseType === 'scale') {
+                          <div class="builder-grid">
+                            <label>Etiqueta minima
+                              <input [name]="'lowLabel' + question.id" [(ngModel)]="question.lowLabel" (change)="saveSurveyBuilder()" />
+                            </label>
+                            <label>Etiqueta maxima
+                              <input [name]="'highLabel' + question.id" [(ngModel)]="question.highLabel" (change)="saveSurveyBuilder()" />
+                            </label>
+                          </div>
+                        }
+
+                        <div class="builder-actions">
+                          <label class="toggle">
+                            <input type="checkbox" [name]="'required' + question.id" [(ngModel)]="question.required" (change)="saveSurveyBuilder()" />
+                            <span>Requerida</span>
+                          </label>
+                          <button class="ghost" type="button" (click)="duplicateSurveyQuestion(question)">Duplicar</button>
+                          <button class="danger" type="button" (click)="deleteSurveyQuestion(question.id)">Eliminar</button>
+                        </div>
+                      </div>
+                    </article>
+                  }
+                </div>
+                <div class="floating-tools">
+                  <button type="button" title="Agregar pregunta" (click)="addSurveyQuestion()">+</button>
+                  <button type="button" title="Agregar texto">Tt</button>
+                  <button type="button" title="Agregar imagen">Img</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        }
         <div class="kpis">
           <article class="kpi">
             <span>Encuestas clima recibidas</span>
