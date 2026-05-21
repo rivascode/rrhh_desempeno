@@ -165,7 +165,7 @@
               <div class="question-row">
                 <p><b>{{ question.id }}.</b> {{ question.text }}</p>
                 <div class="options">
-                  @for (option of likertOptions; track option) {
+                  @for (option of question.options ?? likertOptions; track option) {
                     <label>
                       <input type="radio" [name]="'q' + question.id" [value]="option" [(ngModel)]="climateLikert[question.id]" />
                       <span>{{ option }}</span>
@@ -188,6 +188,38 @@
             </label>
           }
         </section>
+
+        @if (singleChoiceSurveyQuestions().length || multipleChoiceSurveyQuestions().length) {
+          <section class="question-group">
+            <h3>Preguntas de seleccion</h3>
+            @for (question of singleChoiceSurveyQuestions(); track question.id) {
+              <div class="question-row">
+                <p><b>{{ question.id }}.</b> {{ question.text }}</p>
+                <div class="options">
+                  @for (option of question.options ?? []; track option) {
+                    <label>
+                      <input type="radio" [name]="'choice' + question.id" [value]="option" [(ngModel)]="climateLikert[question.id]" />
+                      <span>{{ option }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+            @for (question of multipleChoiceSurveyQuestions(); track question.id) {
+              <div class="question-row">
+                <p><b>{{ question.id }}.</b> {{ question.text }}</p>
+                <div class="options">
+                  @for (option of question.options ?? []; track option) {
+                    <label>
+                      <input type="checkbox" [name]="'multi' + question.id + option" [(ngModel)]="climateMultiple[question.id][option]" />
+                      <span>{{ option }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+          </section>
+        }
 
         <section class="question-group">
           <h3>Preguntas de texto</h3>
@@ -362,6 +394,7 @@
 
       <section class="dashboard">
         <article class="panel form-builder">
+          <div class="forms-canvas">
           <div class="builder-head">
             <div>
               <h2>Editor de encuestas</h2>
@@ -377,12 +410,12 @@
           <div class="builder-list">
             @for (question of surveyQuestions; track question.id) {
               <article class="builder-card">
+                <div class="drag-handle">::</div>
                 <div class="question-number">{{ question.id }}</div>
                 <div class="builder-fields">
-                  <input [name]="'builderText' + question.id" [(ngModel)]="question.text" (change)="saveSurveyBuilder()" placeholder="Escribe la pregunta" />
-                  <div class="builder-grid">
-                    <label>Seccion
-                      <input [name]="'builderSection' + question.id" [(ngModel)]="question.section" (change)="saveSurveyBuilder()" />
+                  <div class="builder-main-row">
+                    <label class="question-title-field">Pregunta
+                      <input [name]="'builderText' + question.id" [(ngModel)]="question.text" (change)="saveSurveyBuilder()" placeholder="Escribe la pregunta" />
                     </label>
                     <label>Tipo de respuesta
                       <select [name]="'builderType' + question.id" [(ngModel)]="question.responseType" (change)="updateSurveyQuestionType(question)">
@@ -392,6 +425,22 @@
                       </select>
                     </label>
                   </div>
+                  <label>Seccion
+                    <input [name]="'builderSection' + question.id" [(ngModel)]="question.section" (change)="saveSurveyBuilder()" />
+                  </label>
+
+                  @if (question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice') {
+                    <div class="option-editor">
+                      @for (option of question.options ?? []; track $index) {
+                        <div class="option-line">
+                          <span class="option-symbol">{{ question.responseType === 'multiple_choice' ? '□' : '○' }}</span>
+                          <input [name]="'option' + question.id + '-' + $index" [(ngModel)]="question.options![$index]" (change)="saveSurveyBuilder()" />
+                          <button class="icon-button" type="button" (click)="deleteQuestionOption(question, $index)">×</button>
+                        </div>
+                      }
+                      <button class="link-button" type="button" (click)="addQuestionOption(question)">Agregar opcion</button>
+                    </div>
+                  }
 
                   @if (question.responseType === 'scale') {
                     <div class="builder-grid">
@@ -415,6 +464,12 @@
                 </div>
               </article>
             }
+          </div>
+          <div class="floating-tools">
+            <button type="button" title="Agregar pregunta" (click)="addSurveyQuestion()">+</button>
+            <button type="button" title="Agregar texto">Tt</button>
+            <button type="button" title="Agregar imagen">▧</button>
+          </div>
           </div>
         </article>
 

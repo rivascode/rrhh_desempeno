@@ -858,6 +858,15 @@ textarea {
 .form-builder {
   display: grid;
   gap: 16px;
+  background: #dff4f7;
+}
+
+.forms-canvas {
+  position: relative;
+  max-width: 1040px;
+  margin: 0 auto;
+  width: 100%;
+  padding-right: 56px;
 }
 
 .builder-head {
@@ -865,6 +874,11 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   align-items: start;
+  padding: 18px;
+  margin-bottom: 12px;
+  background: #fff;
+  border-top: 8px solid #126f9a;
+  border-radius: 8px;
 }
 
 .survey-name {
@@ -877,14 +891,26 @@ textarea {
 }
 
 .builder-card {
+  position: relative;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 14px;
-  padding: 14px;
+  padding: 28px 14px 14px;
   border: 1px solid #dfe7ef;
-  border-left: 5px solid #126f9a;
+  border-left: 6px solid #3b82f6;
   border-radius: 8px;
-  background: #fbfdff;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(21, 34, 50, .06);
+}
+
+.drag-handle {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #a0a8b1;
+  font-weight: 900;
+  letter-spacing: 2px;
 }
 
 .question-number {
@@ -903,10 +929,73 @@ textarea {
   gap: 10px;
 }
 
+.builder-main-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(210px, 260px);
+  gap: 12px;
+  align-items: end;
+}
+
+.question-title-field input {
+  min-height: 52px;
+  border: 0;
+  border-bottom: 2px solid #126f9a;
+  border-radius: 0;
+  background: #f8fafc;
+  font-size: 16px;
+}
+
 .builder-grid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px);
   gap: 10px;
+}
+
+.option-editor {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.option-line {
+  display: grid;
+  grid-template-columns: 24px 1fr 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-symbol {
+  color: #697889;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.option-line input {
+  border: 0;
+  border-bottom: 1px solid #d3dbe3;
+  border-radius: 0;
+}
+
+.icon-button {
+  width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  color: #697889;
+  font-size: 20px;
+}
+
+.icon-button:hover {
+  background: #eef2f6;
+}
+
+.link-button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0;
+  background: transparent;
+  color: #126f9a;
+  font-weight: 800;
 }
 
 .builder-actions {
@@ -916,6 +1005,34 @@ textarea {
   gap: 8px;
   padding-top: 6px;
   border-top: 1px solid #edf2f7;
+}
+
+.floating-tools {
+  position: absolute;
+  top: 112px;
+  right: 0;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #dfe7ef;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(21, 34, 50, .12);
+}
+
+.floating-tools button {
+  width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #d9e2ea;
+  color: #26394d;
+  font-weight: 900;
+}
+
+.floating-tools button:hover {
+  background: #eef8ff;
+  border-color: #126f9a;
 }
 
 .toggle {
@@ -999,8 +1116,20 @@ code {
   }
 
   .builder-card,
+  .builder-main-row,
   .builder-grid {
     grid-template-columns: 1fr;
+  }
+
+  .floating-tools {
+    position: static;
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .forms-canvas {
+    padding-right: 0;
   }
 
   .session-box {

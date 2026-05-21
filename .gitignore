@@ -20,3 +20,4 @@ Thumbs.db
 
 # Temporary analysis artifacts
 analysis/app-screenshot.png
+analysis/video_frames/

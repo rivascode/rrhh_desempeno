@@ -16,15 +16,16 @@ import {
 
 type ViewMode = 'portal' | 'trabajador' | 'jefe' | 'rrhh';
 type PortalRole = 'trabajador' | 'jefe' | 'rrhh';
-type ResponseType = 'likert' | 'short_text' | 'long_text' | 'scale';
+type ResponseType = 'likert' | 'single_choice' | 'multiple_choice' | 'short_text' | 'long_text' | 'scale';
 
 interface ClimateSubmission {
   type: 'climate';
   createdAt: string;
   employee: Record<string, string>;
-  likert: Record<number, LikertOption>;
+  likert: Record<number, string>;
   scales: Record<number, number>;
   open: Record<number, string>;
+  multiple: Record<number, string[]>;
 }
 
 interface PerformanceSubmission {
@@ -90,6 +91,7 @@ interface SurveyQuestion {
   text: string;
   responseType: ResponseType;
   required: boolean;
+  options?: string[];
   lowLabel?: string;
   highLabel?: string;
 }
@@ -115,11 +117,14 @@ export class App {
   protected readonly scaleQuestions = scaleQuestions;
   protected readonly openQuestions = openQuestions;
   protected readonly responseTypes: { value: ResponseType; label: string }[] = [
-    { value: 'likert', label: 'Seleccion simple' },
+    { value: 'likert', label: 'Escala Likert' },
+    { value: 'single_choice', label: 'Seleccion simple' },
+    { value: 'multiple_choice', label: 'Seleccion multiple' },
     { value: 'short_text', label: 'Texto corto' },
     { value: 'long_text', label: 'Texto largo' },
     { value: 'scale', label: 'Escala 0 a 10' },
   ];
+  protected readonly likertDefaultOptions = ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'];
   protected readonly likertOptions = likertOptions;
   protected readonly competencies = competencies;
   protected readonly suggestedCourses = suggestedCourses;
@@ -146,6 +151,7 @@ export class App {
       text: question.text,
       responseType: 'likert' as ResponseType,
       required: true,
+      options: ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'],
     })),
     ...scaleQuestions.map((question) => ({
       id: question.id,
@@ -163,6 +169,69 @@ export class App {
       responseType: 'long_text' as ResponseType,
       required: false,
     })),
+    {
+      id: 54,
+      section: 'Seleccion multiple',
+      text: 'En que aspectos deberia mejorar para que recomiende mas a DACHASAC? (Elija hasta 3 opciones)',
+      responseType: 'multiple_choice' as ResponseType,
+      required: false,
+      options: [
+        'Ambiente laboral',
+        'Relacion con mis companeros de trabajo',
+        'Posibilidad de aprender y desarrollarme',
+        'Vida integralmente equilibrada',
+        'Oportunidad de generar valor/impacto con mi trabajo',
+        'Relacion con mi jefe',
+        'Reconocimiento',
+        'Liderazgo organizacional',
+        'Cultura',
+        'Condiciones de trabajo',
+        'Identificacion con el proposito de la organizacion',
+        'Beneficios no remunerativos',
+        'Compensacion',
+        'Colaboracion e interaccion con otras areas',
+        'Estabilidad laboral',
+        'Cercania y accesibilidad al lugar del trabajo',
+        'Programas de Recursos Humanos',
+      ],
+    },
+    {
+      id: 55,
+      section: 'Seleccion multiple',
+      text: 'Que aspectos consideras que deberian mejorar en tu area?',
+      responseType: 'multiple_choice' as ResponseType,
+      required: false,
+      options: [
+        'Ningun aspecto a mejorar',
+        'Companerismo entre los miembros del equipo',
+        'Posibilidad de aprender, retos profesionales',
+        'Ambiente de trabajo',
+        'Relacion con mi jefe',
+        'Comunicacion entre miembros del equipo a todo nivel',
+        'Horarios y jornada laboral',
+        'Mejor experiencia para clientes internos y externos',
+        'Trato justo sin importar edad, genero o puesto',
+      ],
+    },
+    {
+      id: 56,
+      section: 'Seleccion multiple',
+      text: 'Que aspectos valoras de tu area?',
+      responseType: 'multiple_choice' as ResponseType,
+      required: false,
+      options: [
+        'Companerismo entre los miembros del equipo',
+        'Tareas de alto impacto',
+        'Posibilidad de aprender, retos profesionales',
+        'Reconocimiento',
+        'Ambiente de trabajo',
+        'Relacion con mi jefe',
+        'Comunicacion fluida entre miembros del equipo',
+        'Horarios y jornada laboral',
+        'Trato justo al colaborador',
+        'Se toman en cuenta opiniones, ideas y sugerencias',
+      ],
+    },
   ];
 
   protected climateEmployee: Record<string, string> = {
@@ -174,11 +243,12 @@ export class App {
     edad: '',
   };
 
-  protected climateLikert: Record<number, LikertOption> = Object.fromEntries(
+  protected climateLikert: Record<number, string> = Object.fromEntries(
     climateQuestions.map((question) => [question.id, 'CASI SIEMPRE' as LikertOption]),
   );
   protected climateScales: Record<number, number> = Object.fromEntries(scaleQuestions.map((question) => [question.id, 8]));
   protected climateOpen: Record<number, string> = {};
+  protected climateMultiple: Record<number, Record<string, boolean>> = {};
 
   protected performanceGeneral: Record<string, string> = {
     evaluado: '',
@@ -215,6 +285,7 @@ export class App {
 
   constructor() {
     this.loadSurveyBuilder();
+    this.ensureSurveyAnswerDefaults();
     this.loadRecords();
   }
 
@@ -300,6 +371,14 @@ export class App {
     return this.surveyQuestions.filter((question) => question.responseType === 'likert');
   }
 
+  protected singleChoiceSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'single_choice');
+  }
+
+  protected multipleChoiceSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'multiple_choice');
+  }
+
   protected scaleSurveyQuestions(): SurveyQuestion[] {
     return this.surveyQuestions.filter((question) => question.responseType === 'scale');
   }
@@ -316,8 +395,9 @@ export class App {
         id: nextId,
         section: 'Nueva seccion',
         text: 'Nueva pregunta',
-        responseType: 'short_text',
-        required: false,
+        responseType: 'single_choice',
+        required: true,
+        options: ['Opcion 1'],
       },
     ];
     this.climateOpen[nextId] = '';
@@ -342,8 +422,17 @@ export class App {
   }
 
   protected updateSurveyQuestionType(question: SurveyQuestion): void {
-    if (question.responseType === 'likert' && !this.climateLikert[question.id]) {
-      this.climateLikert[question.id] = 'CASI SIEMPRE';
+    if (question.responseType === 'likert') {
+      question.options = question.options?.length ? question.options : [...this.likertDefaultOptions];
+    }
+    if (question.responseType === 'single_choice' || question.responseType === 'multiple_choice') {
+      question.options = question.options?.length ? question.options : ['Opcion 1'];
+    }
+    if ((question.responseType === 'likert' || question.responseType === 'single_choice') && !this.climateLikert[question.id]) {
+      this.climateLikert[question.id] = question.responseType === 'likert' ? 'CASI SIEMPRE' : (question.options?.[0] ?? 'Opcion 1');
+    }
+    if (question.responseType === 'multiple_choice' && !this.climateMultiple[question.id]) {
+      this.climateMultiple[question.id] = {};
     }
     if (question.responseType === 'scale' && this.climateScales[question.id] === undefined) {
       this.climateScales[question.id] = 8;
@@ -356,8 +445,35 @@ export class App {
     this.saveSurveyBuilder();
   }
 
+  protected addQuestionOption(question: SurveyQuestion): void {
+    question.options = [...(question.options ?? []), `Opcion ${(question.options?.length ?? 0) + 1}`];
+    this.saveSurveyBuilder();
+  }
+
+  protected optionTrack(questionId: number, option: string): string {
+    return `${questionId}-${option}`;
+  }
+
+  protected deleteQuestionOption(question: SurveyQuestion, optionIndex: number): void {
+    question.options = (question.options ?? []).filter((_, index) => index !== optionIndex);
+    this.saveSurveyBuilder();
+  }
+
+  protected optionInputType(question: SurveyQuestion): string {
+    return question.responseType === 'multiple_choice' ? 'checkbox' : 'radio';
+  }
+
+  protected choiceSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'likert' || question.responseType === 'single_choice' || question.responseType === 'multiple_choice');
+  }
+
+  protected likertValue(option: string | undefined): number {
+    return option && option in likertScore ? likertScore[option as LikertOption] : 0;
+  }
+
   protected saveSurveyBuilder(): void {
     localStorage.setItem('rrhh_survey_builder', JSON.stringify({ name: this.surveyName, questions: this.surveyQuestions }));
+    this.ensureSurveyAnswerDefaults();
     this.message.set('Preguntas de la encuesta actualizadas.');
   }
 
@@ -370,7 +486,7 @@ export class App {
   }
 
   protected climatePreview(): number {
-    const total = this.likertSurveyQuestions().reduce((sum, question) => sum + likertScore[this.climateLikert[question.id]], 0);
+    const total = this.likertSurveyQuestions().reduce((sum, question) => sum + this.likertValue(this.climateLikert[question.id]), 0);
     const likertCount = Math.max(1, this.likertSurveyQuestions().length);
     const scaleCount = Math.max(1, this.scaleSurveyQuestions().length);
     const likertPercent = (total / (likertCount * 5)) * 100;
@@ -396,6 +512,12 @@ export class App {
       likert: { ...this.climateLikert },
       scales: { ...this.climateScales },
       open: { ...this.climateOpen },
+      multiple: Object.fromEntries(
+        Object.entries(this.climateMultiple).map(([questionId, values]) => [
+          questionId,
+          Object.entries(values).filter(([, checked]) => checked).map(([option]) => option),
+        ]),
+      ),
     };
     this.persist('climate', payload);
   }
@@ -493,10 +615,45 @@ export class App {
       const stored = JSON.parse(localStorage.getItem('rrhh_survey_builder') ?? 'null');
       if (stored?.name && Array.isArray(stored?.questions)) {
         this.surveyName = stored.name;
-        this.surveyQuestions = stored.questions;
+        this.surveyQuestions = stored.questions.map((question: SurveyQuestion) => ({
+          ...question,
+          options: this.normalizedOptions(question),
+        }));
       }
     } catch {
       return;
+    }
+  }
+
+  private normalizedOptions(question: SurveyQuestion): string[] | undefined {
+    if (question.responseType === 'likert') return question.options?.length ? question.options : [...this.likertDefaultOptions];
+    if (question.responseType === 'single_choice' || question.responseType === 'multiple_choice') return question.options?.length ? question.options : ['Opcion 1'];
+    return question.options;
+  }
+
+  private ensureSurveyAnswerDefaults(): void {
+    for (const question of this.surveyQuestions) {
+      if (question.responseType === 'likert') {
+        question.options = question.options?.length ? question.options : [...this.likertDefaultOptions];
+        this.climateLikert[question.id] = this.climateLikert[question.id] || question.options[3] || question.options[0];
+      }
+      if (question.responseType === 'single_choice') {
+        question.options = question.options?.length ? question.options : ['Opcion 1'];
+        this.climateLikert[question.id] = this.climateLikert[question.id] || question.options[0];
+      }
+      if (question.responseType === 'multiple_choice') {
+        question.options = question.options?.length ? question.options : ['Opcion 1'];
+        this.climateMultiple[question.id] = this.climateMultiple[question.id] || {};
+        for (const option of question.options) {
+          this.climateMultiple[question.id][option] = this.climateMultiple[question.id][option] || false;
+        }
+      }
+      if (question.responseType === 'scale') {
+        this.climateScales[question.id] = this.climateScales[question.id] ?? 8;
+      }
+      if (question.responseType === 'short_text' || question.responseType === 'long_text') {
+        this.climateOpen[question.id] = this.climateOpen[question.id] ?? '';
+      }
     }
   }
 
@@ -520,7 +677,7 @@ export class App {
 
   private dimensionScores(records: ClimateSubmission[]): { label: string; value: number }[] {
     return this.questionsByDimension().map(({ dimension, questions }) => {
-      const scores = records.flatMap((record) => questions.map((question) => likertScore[record.likert[question.id]]).filter(Boolean));
+      const scores = records.flatMap((record) => questions.map((question) => this.likertValue(record.likert[question.id])).filter(Boolean));
       return { label: dimension, value: Math.round((this.average(scores) / 5) * 1000) / 10 };
     });
   }
