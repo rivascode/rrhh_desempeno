@@ -22,6 +22,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
 }
 
 .brand {
@@ -102,6 +103,12 @@ button {
   display: grid;
   grid-template-columns: minmax(460px, 54vw) 1fr;
   background: #ffffff;
+}
+
+.login-layout::after {
+  content: "";
+  display: block;
+  min-width: 32px;
 }
 
 .login-visual {
@@ -489,7 +496,9 @@ button {
 }
 
 .content {
-  padding: 28px;
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: clamp(18px, 2.4vw, 32px);
 }
 
 .topbar {
@@ -509,12 +518,12 @@ p {
 }
 
 h1 {
-  font-size: 30px;
+  font-size: clamp(24px, 2.2vw, 32px);
   margin-bottom: 6px;
 }
 
 h2 {
-  font-size: 20px;
+  font-size: clamp(18px, 1.5vw, 22px);
 }
 
 h3 {
@@ -549,7 +558,7 @@ h3 {
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 14px;
   margin-bottom: 14px;
 }
@@ -575,7 +584,7 @@ h3 {
 
 .grid.two {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -639,6 +648,7 @@ h3 {
 .form-view {
   display: grid;
   gap: 16px;
+  max-width: 1280px;
 }
 
 .section-heading {
@@ -660,7 +670,7 @@ h3 {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
 }
 
@@ -687,6 +697,7 @@ textarea {
 textarea {
   min-height: 74px;
   resize: vertical;
+  line-height: 1.45;
 }
 
 .question-group {
@@ -710,7 +721,7 @@ textarea {
 
 .options {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 8px;
 }
 
@@ -724,6 +735,8 @@ textarea {
   border-radius: 8px;
   font-weight: 600;
   font-size: 13px;
+  text-align: center;
+  padding: 6px 8px;
 }
 
 .options input {
@@ -732,7 +745,8 @@ textarea {
 }
 
 .scale-row {
-  grid-template-columns: 1fr 280px 42px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 280px) 42px;
   align-items: center;
   margin: 14px 0;
 }
@@ -744,13 +758,13 @@ textarea {
 
 .competency-row {
   display: grid;
-  grid-template-columns: 1.5fr 180px 1fr;
+  grid-template-columns: minmax(260px, 1.45fr) minmax(160px, .45fr) minmax(240px, 1fr);
   gap: 14px;
 }
 
 .objective-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1.4fr 90px 150px 120px 120px;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.3fr) 90px minmax(130px, .7fr) minmax(110px, .6fr) 120px;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -800,6 +814,8 @@ textarea {
   align-items: center;
   padding: 9px 10px;
   background: #fff;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .status-table > span:nth-child(-n + 5) {
@@ -862,7 +878,7 @@ textarea {
 
 .builder-card {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 14px;
   padding: 14px;
   border: 1px solid #dfe7ef;
@@ -889,7 +905,7 @@ textarea {
 
 .builder-grid {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px);
   gap: 10px;
 }
 
@@ -933,18 +949,27 @@ code {
   border-radius: 6px;
 }
 
+@media (min-width: 1400px) {
+  .panel,
+  .question-group,
+  .access-panel,
+  .kpi {
+    padding: 22px;
+  }
+
+  .form-view {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .objective-grid {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
-  .shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: static;
-    height: auto;
-  }
-
   .nav,
-  .login-layout,
   .kpis,
   .grid.two,
   .form-grid,
@@ -979,8 +1004,8 @@ code {
   }
 
   .session-box {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
     width: 100%;
   }
 
@@ -1017,5 +1042,118 @@ code {
   .person {
     left: 260px;
     top: 26%;
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    padding: 18px;
+  }
+
+  .nav {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    padding: 14px;
+  }
+
+  .topbar,
+  .access-panel,
+  .panel,
+  .question-group,
+  .kpi {
+    border-radius: 6px;
+  }
+
+  .topbar {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .session-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .session-box span,
+  .session-box strong {
+    grid-column: 1 / -1;
+  }
+
+  .login-visual {
+    min-height: 260px;
+  }
+
+  .visual-badge,
+  .window-shape,
+  .desk,
+  .person,
+  .plant {
+    display: none;
+  }
+
+  .visual-copy {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    max-width: none;
+  }
+
+  .login-card {
+    width: 100%;
+    min-height: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 22px 18px 28px;
+  }
+
+  .scale-row {
+    grid-template-columns: 1fr 48px;
+  }
+
+  .scale-row input {
+    grid-column: 1 / -1;
+  }
+
+  .scale-row b {
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .objective-grid,
+  .training-grid,
+  .feedback-grid {
+    gap: 10px;
+  }
+
+  .bar-row {
+    grid-template-columns: 1fr 54px;
+  }
+
+  .bar-row .bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .likert-chart {
+    height: 180px;
+    gap: 8px;
+  }
+
+  .likert-chart span {
+    font-size: 11px;
+    overflow-wrap: anywhere;
   }
 }
