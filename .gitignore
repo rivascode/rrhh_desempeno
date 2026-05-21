@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Angular build artifacts
+frontend/dist/
+frontend/.angular/
+
+# Local server logs
+frontend/ng-serve*.log
+*.log
+
+# Runtime data
+backend/data/records.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Temporary analysis artifacts
+analysis/app-screenshot.png

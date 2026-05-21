@@ -1,0 +1,554 @@
+import { HttpClient } from '@angular/common/http';
+import { DatePipe, JsonPipe } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import {
+  Competency,
+  LikertOption,
+  climateQuestions,
+  competencies,
+  likertOptions,
+  likertScore,
+  openQuestions,
+  scaleQuestions,
+  suggestedCourses,
+} from './form-data';
+
+type ViewMode = 'portal' | 'trabajador' | 'jefe' | 'rrhh';
+type PortalRole = 'trabajador' | 'jefe' | 'rrhh';
+type ResponseType = 'likert' | 'short_text' | 'long_text' | 'scale';
+
+interface ClimateSubmission {
+  type: 'climate';
+  createdAt: string;
+  employee: Record<string, string>;
+  likert: Record<number, LikertOption>;
+  scales: Record<number, number>;
+  open: Record<number, string>;
+}
+
+interface PerformanceSubmission {
+  type: 'performance';
+  createdAt: string;
+  general: Record<string, string>;
+  scores: Record<string, number>;
+  evidence: Record<string, string>;
+  potential: number;
+  potentialComment: string;
+  objectives: ObjectiveRow[];
+  trainings: TrainingRow[];
+  feedback: FeedbackRow[];
+  agreement: string;
+  employeeComment: string;
+}
+
+interface ObjectiveRow {
+  objective: string;
+  description: string;
+  weight: number;
+  unit: string;
+  target: string;
+  result: number;
+}
+
+interface TrainingRow {
+  course: string;
+  competency: string;
+  priority: number;
+}
+
+interface FeedbackRow {
+  competency: string;
+  strength: string;
+  improvement: string;
+}
+
+interface DashboardSummary {
+  climateCount: number;
+  performanceCount: number;
+  climateAverage: number;
+  performanceAverage: number;
+  climateStatus: string;
+  dimensionScores: { label: string; value: number }[];
+  competencyScores: { label: string; value: number }[];
+  likertDistribution: { label: string; value: number }[];
+}
+
+interface PersonStatus {
+  dni: string;
+  name: string;
+  area: string;
+  position: string;
+  bossDni: string;
+  climateDone: boolean;
+  performanceDone: boolean;
+}
+
+interface SurveyQuestion {
+  id: number;
+  section: string;
+  text: string;
+  responseType: ResponseType;
+  required: boolean;
+  lowLabel?: string;
+  highLabel?: string;
+}
+
+const apiBase = 'http://127.0.0.1:8081/api/index.php';
+
+@Component({
+  selector: 'app-root',
+  imports: [FormsModule, DatePipe, JsonPipe],
+  templateUrl: './app.html',
+  styleUrl: './app.css'
+})
+export class App {
+  private readonly http = inject(HttpClient);
+
+  protected readonly view = signal<ViewMode>('portal');
+  protected readonly loggedIn = signal(false);
+  protected readonly activeRole = signal<PortalRole>('trabajador');
+  protected readonly saving = signal(false);
+  protected readonly message = signal('');
+  protected readonly records = signal<(ClimateSubmission | PerformanceSubmission)[]>([]);
+  protected readonly climateQuestions = climateQuestions;
+  protected readonly scaleQuestions = scaleQuestions;
+  protected readonly openQuestions = openQuestions;
+  protected readonly responseTypes: { value: ResponseType; label: string }[] = [
+    { value: 'likert', label: 'Seleccion simple' },
+    { value: 'short_text', label: 'Texto corto' },
+    { value: 'long_text', label: 'Texto largo' },
+    { value: 'scale', label: 'Escala 0 a 10' },
+  ];
+  protected readonly likertOptions = likertOptions;
+  protected readonly competencies = competencies;
+  protected readonly suggestedCourses = suggestedCourses;
+  protected readonly employees: PersonStatus[] = [
+    { dni: '40112233', name: 'Ana Torres', area: 'Importacion', position: 'Liquidador', bossDni: '10998877', climateDone: false, performanceDone: false },
+    { dni: '42114455', name: 'Carlos Medina', area: 'Exportacion', position: 'Sectorista', bossDni: '10998877', climateDone: true, performanceDone: false },
+    { dni: '43889911', name: 'Lucia Rojas', area: 'Sistemas', position: 'Analista', bossDni: '10887766', climateDone: false, performanceDone: true },
+    { dni: '45667788', name: 'Miguel Salas', area: 'Contabilidad', position: 'Asistente', bossDni: '10776655', climateDone: true, performanceDone: true },
+  ];
+  protected workerDni = '40112233';
+  protected bossDni = '10998877';
+  protected hrDni = '70001122';
+  protected loginDni = '40112233';
+  protected loginPassword = '';
+  protected loginPortal: PortalRole = 'trabajador';
+  protected activeCycle = 'Evaluacion anual 2026';
+  protected reminderChannel = 'Correo y WhatsApp';
+  protected reminderMessage = '';
+  protected surveyName = 'Encuesta de clima laboral';
+  protected surveyQuestions: SurveyQuestion[] = [
+    ...climateQuestions.map((question) => ({
+      id: question.id,
+      section: question.dimension,
+      text: question.text,
+      responseType: 'likert' as ResponseType,
+      required: true,
+    })),
+    ...scaleQuestions.map((question) => ({
+      id: question.id,
+      section: question.dimension,
+      text: question.text,
+      responseType: 'scale' as ResponseType,
+      required: true,
+      lowLabel: question.lowLabel,
+      highLabel: question.highLabel,
+    })),
+    ...openQuestions.map((question) => ({
+      id: question.id,
+      section: 'Preguntas abiertas',
+      text: question.text,
+      responseType: 'long_text' as ResponseType,
+      required: false,
+    })),
+  ];
+
+  protected climateEmployee: Record<string, string> = {
+    sede: 'CALLAO',
+    area: '',
+    puesto: '',
+    antiguedad: '',
+    sexo: '',
+    edad: '',
+  };
+
+  protected climateLikert: Record<number, LikertOption> = Object.fromEntries(
+    climateQuestions.map((question) => [question.id, 'CASI SIEMPRE' as LikertOption]),
+  );
+  protected climateScales: Record<number, number> = Object.fromEntries(scaleQuestions.map((question) => [question.id, 8]));
+  protected climateOpen: Record<number, string> = {};
+
+  protected performanceGeneral: Record<string, string> = {
+    evaluado: '',
+    evaluador: '',
+    sede: 'CALLAO',
+    cargoEvaluado: '',
+    cargoEvaluador: '',
+    gerencia: '',
+    area: '',
+    periodo: new Date().getFullYear().toString(),
+  };
+  protected performanceScores: Record<string, number> = Object.fromEntries(competencies.map((item) => [item.id, 3]));
+  protected performanceEvidence: Record<string, string> = {};
+  protected potential = 3;
+  protected potentialComment = '';
+  protected agreement = 'De acuerdo';
+  protected employeeComment = '';
+  protected objectives: ObjectiveRow[] = [
+    { objective: '', description: '', weight: 40, unit: '% Cumplimiento', target: '100%', result: 80 },
+    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', target: '100%', result: 80 },
+    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', target: '100%', result: 80 },
+  ];
+  protected trainings: TrainingRow[] = [
+    { course: 'Seguimiento y Feedback', competency: 'Liderazgo', priority: 1 },
+    { course: 'Gestion por Indicadores', competency: 'Orientacion al logro', priority: 2 },
+  ];
+  protected feedback: FeedbackRow[] = competencies.slice(0, 5).map((item) => ({
+    competency: item.name,
+    strength: '',
+    improvement: '',
+  }));
+
+  protected readonly summary = computed<DashboardSummary>(() => this.buildSummary(this.records()));
+
+  constructor() {
+    this.loadSurveyBuilder();
+    this.loadRecords();
+  }
+
+  protected setView(next: ViewMode): void {
+    this.view.set(next);
+    this.message.set('');
+  }
+
+  protected openPortal(next: ViewMode): void {
+    this.setView(next);
+  }
+
+  protected login(): void {
+    if (!this.loginDni.trim() || !this.loginPassword.trim()) {
+      this.message.set('Ingrese DNI, contrasena y portal para continuar.');
+      return;
+    }
+
+    this.loggedIn.set(true);
+    this.activeRole.set(this.loginPortal);
+
+    if (this.loginPortal === 'trabajador') {
+      this.workerDni = this.loginDni;
+      this.setView('trabajador');
+    }
+
+    if (this.loginPortal === 'jefe') {
+      this.bossDni = this.loginDni;
+      this.setView('jefe');
+    }
+
+    if (this.loginPortal === 'rrhh') {
+      this.hrDni = this.loginDni;
+      this.setView('rrhh');
+    }
+
+    this.message.set('');
+  }
+
+  protected logout(): void {
+    this.loggedIn.set(false);
+    this.loginPassword = '';
+    this.setView('portal');
+  }
+
+  protected roleLabel(): string {
+    if (this.activeRole() === 'trabajador') return 'Trabajador';
+    if (this.activeRole() === 'jefe') return 'Jefe evaluador';
+    return 'RRHH';
+  }
+
+  protected pendingClimate(): PersonStatus[] {
+    return this.employees.filter((employee) => !employee.climateDone);
+  }
+
+  protected pendingPerformance(): PersonStatus[] {
+    return this.employees.filter((employee) => !employee.performanceDone);
+  }
+
+  protected bossTeam(): PersonStatus[] {
+    return this.employees.filter((employee) => employee.bossDni === this.bossDni);
+  }
+
+  protected sendReminder(kind: 'climate' | 'performance'): void {
+    const pending = kind === 'climate' ? this.pendingClimate().length : this.pendingPerformance().length;
+    const label = kind === 'climate' ? 'encuesta de clima laboral' : 'evaluacion de desempeno';
+    this.reminderMessage = `Recordatorio preparado para ${pending} pendientes de ${label} via ${this.reminderChannel}.`;
+  }
+
+  protected scheduleCycle(): void {
+    this.reminderMessage = `Programacion creada para ${this.activeCycle}: apertura, recordatorio intermedio y cierre con reporte para RRHH.`;
+  }
+
+  protected questionsByDimension(): { dimension: string; questions: SurveyQuestion[] }[] {
+    const grouped = new Map<string, SurveyQuestion[]>();
+    for (const question of this.likertSurveyQuestions()) {
+      grouped.set(question.section, [...(grouped.get(question.section) ?? []), question]);
+    }
+    return Array.from(grouped, ([dimension, questions]) => ({ dimension, questions }));
+  }
+
+  protected likertSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'likert');
+  }
+
+  protected scaleSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'scale');
+  }
+
+  protected textSurveyQuestions(): SurveyQuestion[] {
+    return this.surveyQuestions.filter((question) => question.responseType === 'short_text' || question.responseType === 'long_text');
+  }
+
+  protected addSurveyQuestion(): void {
+    const nextId = Math.max(0, ...this.surveyQuestions.map((question) => question.id)) + 1;
+    this.surveyQuestions = [
+      ...this.surveyQuestions,
+      {
+        id: nextId,
+        section: 'Nueva seccion',
+        text: 'Nueva pregunta',
+        responseType: 'short_text',
+        required: false,
+      },
+    ];
+    this.climateOpen[nextId] = '';
+    this.saveSurveyBuilder();
+  }
+
+  protected duplicateSurveyQuestion(question: SurveyQuestion): void {
+    const nextId = Math.max(0, ...this.surveyQuestions.map((item) => item.id)) + 1;
+    this.surveyQuestions = [
+      ...this.surveyQuestions,
+      { ...question, id: nextId, text: `${question.text} (copia)` },
+    ];
+    this.saveSurveyBuilder();
+  }
+
+  protected deleteSurveyQuestion(questionId: number): void {
+    this.surveyQuestions = this.surveyQuestions.filter((question) => question.id !== questionId);
+    delete this.climateLikert[questionId];
+    delete this.climateScales[questionId];
+    delete this.climateOpen[questionId];
+    this.saveSurveyBuilder();
+  }
+
+  protected updateSurveyQuestionType(question: SurveyQuestion): void {
+    if (question.responseType === 'likert' && !this.climateLikert[question.id]) {
+      this.climateLikert[question.id] = 'CASI SIEMPRE';
+    }
+    if (question.responseType === 'scale' && this.climateScales[question.id] === undefined) {
+      this.climateScales[question.id] = 8;
+      question.lowLabel = question.lowLabel || 'Minimo';
+      question.highLabel = question.highLabel || 'Maximo';
+    }
+    if ((question.responseType === 'short_text' || question.responseType === 'long_text') && this.climateOpen[question.id] === undefined) {
+      this.climateOpen[question.id] = '';
+    }
+    this.saveSurveyBuilder();
+  }
+
+  protected saveSurveyBuilder(): void {
+    localStorage.setItem('rrhh_survey_builder', JSON.stringify({ name: this.surveyName, questions: this.surveyQuestions }));
+    this.message.set('Preguntas de la encuesta actualizadas.');
+  }
+
+  protected competenciesByGroup(): { group: string; items: Competency[] }[] {
+    const grouped = new Map<string, Competency[]>();
+    for (const competency of this.competencies) {
+      grouped.set(competency.group, [...(grouped.get(competency.group) ?? []), competency]);
+    }
+    return Array.from(grouped, ([group, items]) => ({ group, items }));
+  }
+
+  protected climatePreview(): number {
+    const total = this.likertSurveyQuestions().reduce((sum, question) => sum + likertScore[this.climateLikert[question.id]], 0);
+    const likertCount = Math.max(1, this.likertSurveyQuestions().length);
+    const scaleCount = Math.max(1, this.scaleSurveyQuestions().length);
+    const likertPercent = (total / (likertCount * 5)) * 100;
+    const scalePercent =
+      this.scaleSurveyQuestions().reduce((sum, question) => sum + Number(this.climateScales[question.id] || 0), 0) / (scaleCount * 10) * 100;
+    return Math.round((likertPercent * 0.8 + scalePercent * 0.2) * 10) / 10;
+  }
+
+  protected performancePreview(): number {
+    const competencyAvg = this.average(Object.values(this.performanceScores).map((value) => Number(value || 0))) / 5 * 100;
+    const objectiveRows = this.objectives.filter((row) => row.objective.trim());
+    const objectiveScore = objectiveRows.length
+      ? objectiveRows.reduce((sum, row) => sum + (Number(row.weight || 0) / 100) * Number(row.result || 0), 0)
+      : competencyAvg;
+    return Math.round((competencyAvg * 0.7 + objectiveScore * 0.3) * 10) / 10;
+  }
+
+  protected submitClimate(): void {
+    const payload: ClimateSubmission = {
+      type: 'climate',
+      createdAt: new Date().toISOString(),
+      employee: { ...this.climateEmployee },
+      likert: { ...this.climateLikert },
+      scales: { ...this.climateScales },
+      open: { ...this.climateOpen },
+    };
+    this.persist('climate', payload);
+  }
+
+  protected submitPerformance(): void {
+    const payload: PerformanceSubmission = {
+      type: 'performance',
+      createdAt: new Date().toISOString(),
+      general: { ...this.performanceGeneral },
+      scores: { ...this.performanceScores },
+      evidence: { ...this.performanceEvidence },
+      potential: Number(this.potential || 0),
+      potentialComment: this.potentialComment,
+      objectives: this.objectives.map((row) => ({ ...row, weight: Number(row.weight || 0), result: Number(row.result || 0) })),
+      trainings: this.trainings.map((row) => ({ ...row, priority: Number(row.priority || 0) })),
+      feedback: this.feedback.map((row) => ({ ...row })),
+      agreement: this.agreement,
+      employeeComment: this.employeeComment,
+    };
+    this.persist('performance', payload);
+  }
+
+  protected exportJson(): void {
+    const blob = new Blob([JSON.stringify(this.records(), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `rrhh-resultados-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  protected addObjective(): void {
+    this.objectives.push({ objective: '', description: '', weight: 0, unit: '% Cumplimiento', target: '', result: 0 });
+  }
+
+  protected addTraining(): void {
+    this.trainings.push({ course: '', competency: '', priority: this.trainings.length + 1 });
+  }
+
+  protected addFeedback(): void {
+    this.feedback.push({ competency: '', strength: '', improvement: '' });
+  }
+
+  protected statusFor(value: number): string {
+    if (value > 80) return 'Saludable';
+    if (value > 50) return 'En proceso de mejora';
+    return 'No saludable';
+  }
+
+  protected trackByLabel(_: number, item: { label: string }): string {
+    return item.label;
+  }
+
+  private persist(kind: 'climate' | 'performance', payload: ClimateSubmission | PerformanceSubmission): void {
+    this.saving.set(true);
+    this.http.post(`${apiBase}?action=${kind}`, payload).subscribe({
+      next: () => this.afterPersist(payload, 'Registro guardado en backend PHP.'),
+      error: () => this.afterPersist(payload, 'Backend PHP no disponible; registro guardado localmente para la demo.'),
+    });
+  }
+
+  private afterPersist(payload: ClimateSubmission | PerformanceSubmission, message: string): void {
+    this.records.update((items) => [payload, ...items]);
+    localStorage.setItem('rrhh_records', JSON.stringify(this.records()));
+    this.saving.set(false);
+    this.message.set(message);
+    this.view.set(this.activeRole());
+  }
+
+  private loadRecords(): void {
+    const local = this.readLocalRecords();
+    this.records.set(local);
+    this.http.get<(ClimateSubmission | PerformanceSubmission)[]>(`${apiBase}?action=records`).subscribe({
+      next: (items) => {
+        if (Array.isArray(items)) {
+          const merged = [...items, ...local].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          this.records.set(merged);
+        }
+      },
+      error: () => undefined,
+    });
+  }
+
+  private readLocalRecords(): (ClimateSubmission | PerformanceSubmission)[] {
+    try {
+      return JSON.parse(localStorage.getItem('rrhh_records') ?? '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  private loadSurveyBuilder(): void {
+    try {
+      const stored = JSON.parse(localStorage.getItem('rrhh_survey_builder') ?? 'null');
+      if (stored?.name && Array.isArray(stored?.questions)) {
+        this.surveyName = stored.name;
+        this.surveyQuestions = stored.questions;
+      }
+    } catch {
+      return;
+    }
+  }
+
+  private buildSummary(records: (ClimateSubmission | PerformanceSubmission)[]): DashboardSummary {
+    const climate = records.filter((item): item is ClimateSubmission => item.type === 'climate');
+    const performance = records.filter((item): item is PerformanceSubmission => item.type === 'performance');
+    const dimensionScores = this.dimensionScores(climate);
+    const competencyScores = this.competencyScores(performance);
+    const climateAverage = this.average(dimensionScores.map((item) => item.value));
+    return {
+      climateCount: climate.length,
+      performanceCount: performance.length,
+      climateAverage,
+      performanceAverage: this.average(performance.map((item) => this.performanceScore(item))),
+      climateStatus: this.statusFor(climateAverage),
+      dimensionScores,
+      competencyScores,
+      likertDistribution: this.likertDistribution(climate),
+    };
+  }
+
+  private dimensionScores(records: ClimateSubmission[]): { label: string; value: number }[] {
+    return this.questionsByDimension().map(({ dimension, questions }) => {
+      const scores = records.flatMap((record) => questions.map((question) => likertScore[record.likert[question.id]]).filter(Boolean));
+      return { label: dimension, value: Math.round((this.average(scores) / 5) * 1000) / 10 };
+    });
+  }
+
+  private competencyScores(records: PerformanceSubmission[]): { label: string; value: number }[] {
+    return this.competencies.map((competency) => {
+      const values = records.map((record) => Number(record.scores[competency.id] || 0)).filter(Boolean);
+      return { label: competency.name, value: Math.round((this.average(values) / 5) * 1000) / 10 };
+    });
+  }
+
+  private likertDistribution(records: ClimateSubmission[]): { label: string; value: number }[] {
+    const total = records.length * this.likertSurveyQuestions().length || 1;
+    return this.likertOptions.map((option) => {
+      const count = records.reduce((sum, record) => {
+        return sum + Object.values(record.likert).filter((value) => value === option).length;
+      }, 0);
+      return { label: option, value: Math.round((count / total) * 1000) / 10 };
+    });
+  }
+
+  private performanceScore(record: PerformanceSubmission): number {
+    return this.average(Object.values(record.scores).map((value) => Number(value || 0))) / 5 * 100;
+  }
+
+  private average(values: number[]): number {
+    const valid = values.filter((value) => Number.isFinite(value) && value > 0);
+    if (!valid.length) return 0;
+    return Math.round((valid.reduce((sum, value) => sum + value, 0) / valid.length) * 10) / 10;
+  }
+}

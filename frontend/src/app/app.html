@@ -1,0 +1,530 @@
+<main class="shell" [class.login-shell]="!loggedIn() && view() === 'portal'">
+  @if (loggedIn()) {
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">RH</span>
+      <div>
+        <strong>Portal RRHH</strong>
+        <small>Trabajador, jefe y RRHH</small>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button [class.active]="view() === 'portal'" (click)="setView('portal')">Inicio de portales</button>
+      @if (loggedIn() && activeRole() === 'trabajador') {
+        <button [class.active]="view() === 'trabajador'" (click)="setView('trabajador')">Portal trabajador</button>
+      }
+      @if (loggedIn() && activeRole() === 'jefe') {
+        <button [class.active]="view() === 'jefe'" (click)="setView('jefe')">Portal jefe</button>
+      }
+      @if (loggedIn() && activeRole() === 'rrhh') {
+        <button [class.active]="view() === 'rrhh'" (click)="setView('rrhh')">Portal RRHH</button>
+      }
+    </nav>
+
+    <section class="source-card">
+      <strong>Estructura definida</strong>
+      <span>1. Clima laboral por trabajador</span>
+      <span>2. Desempeno por jefe</span>
+      <span>3. RRHH: control, dashboard y reportes</span>
+    </section>
+  </aside>
+  }
+
+  <section class="content">
+    @if (loggedIn()) {
+    <header class="topbar">
+      <div>
+        <h1>Plataforma RRHH</h1>
+        <p>Acceso segmentado por DNI para encuesta, evaluacion y gestion de resultados.</p>
+      </div>
+      @if (loggedIn()) {
+        <div class="session-box">
+          <span>{{ roleLabel() }}</span>
+          <strong>DNI {{ loginDni }}</strong>
+          @if (activeRole() === 'rrhh') {
+            <button class="ghost" (click)="exportJson()">Exportar resultados</button>
+          }
+          <button class="ghost" (click)="logout()">Salir</button>
+        </div>
+      }
+    </header>
+    }
+
+    @if (message()) {
+      <div class="notice">{{ message() }}</div>
+    }
+
+    @if (view() === 'portal') {
+      <section class="login-layout">
+        <div class="login-visual">
+          <div class="visual-badge">RRHH</div>
+          <div class="window-shape"></div>
+          <div class="desk">
+            <div class="lamp"></div>
+            <div class="screen">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="mug"></div>
+          </div>
+          <div class="person">
+            <div class="head"></div>
+            <div class="hair"></div>
+            <div class="body"></div>
+            <div class="arm"></div>
+          </div>
+          <div class="plant">
+            <i></i><i></i><i></i>
+          </div>
+          <div class="visual-copy">
+            <h1>Gestion integral de personas</h1>
+            <p>Clima laboral, evaluacion de desempeno y reporteria en un solo entorno.</p>
+          </div>
+        </div>
+
+        <form class="login-card" (ngSubmit)="login()">
+          <div class="login-brand">
+            <span class="brand-mark">RH</span>
+            <div>
+              <strong>RRHH Desempeno</strong>
+              <small>Acceso seguro por rol</small>
+            </div>
+          </div>
+          <span class="login-eyebrow">Ingreso al sistema</span>
+          <h2>Bienvenido</h2>
+          <p>Seleccione el portal que corresponde a su rol e ingrese sus credenciales.</p>
+
+          <label>Portal
+            <select name="loginPortal" [(ngModel)]="loginPortal">
+              <option value="trabajador">Portal trabajador - Encuesta de clima laboral</option>
+              <option value="jefe">Portal jefe - Evaluacion de desempeno</option>
+              <option value="rrhh">Portal RRHH - Dashboard y reporteria</option>
+            </select>
+          </label>
+
+          <label>DNI
+            <input name="loginDni" inputmode="numeric" autocomplete="username" [(ngModel)]="loginDni" />
+          </label>
+
+          <label>Contrasena
+            <input name="loginPassword" type="password" autocomplete="current-password" [(ngModel)]="loginPassword" />
+          </label>
+
+          <button class="primary login-submit" type="submit">Ingresar</button>
+
+          <div class="login-hint">
+            @if (loginPortal === 'trabajador') {
+              <span>Entrara al formulario de encuesta de clima laboral.</span>
+            }
+            @if (loginPortal === 'jefe') {
+              <span>Entrara a evaluar el desempeno del equipo asignado.</span>
+            }
+            @if (loginPortal === 'rrhh') {
+              <span>Entrara al control de llenado, dashboard y reportes.</span>
+            }
+          </div>
+        </form>
+      </section>
+    }
+
+    @if (loggedIn() && view() === 'trabajador') {
+      <section class="access-panel">
+        <div>
+          <h2>Portal trabajador</h2>
+          <p>El trabajador accede con su DNI desde la web y completa solo la encuesta de clima laboral.</p>
+        </div>
+        <label>DNI del trabajador
+          <input name="workerDni" [(ngModel)]="workerDni" />
+        </label>
+      </section>
+
+      <form class="form-view" (ngSubmit)="submitClimate()">
+        <div class="section-heading">
+          <div>
+            <h2>{{ surveyName }}</h2>
+            <p>Formulario basado en las hojas ESTRUCTURA, RESPUESTAS y RESULTADOS del libro de clima laboral.</p>
+          </div>
+          <span class="score-pill">{{ climatePreview() }}%</span>
+        </div>
+
+        <div class="form-grid">
+          <label>Sede <input name="sede" [(ngModel)]="climateEmployee['sede']" /></label>
+          <label>Area <input name="area" [(ngModel)]="climateEmployee['area']" required /></label>
+          <label>Puesto <input name="puesto" [(ngModel)]="climateEmployee['puesto']" required /></label>
+          <label>Antiguedad <input name="antiguedad" [(ngModel)]="climateEmployee['antiguedad']" /></label>
+          <label>Sexo <input name="sexo" [(ngModel)]="climateEmployee['sexo']" /></label>
+          <label>Edad <input name="edad" [(ngModel)]="climateEmployee['edad']" /></label>
+        </div>
+
+        @for (group of questionsByDimension(); track group.dimension) {
+          <section class="question-group">
+            <h3>{{ group.dimension }}</h3>
+            @for (question of group.questions; track question.id) {
+              <div class="question-row">
+                <p><b>{{ question.id }}.</b> {{ question.text }}</p>
+                <div class="options">
+                  @for (option of likertOptions; track option) {
+                    <label>
+                      <input type="radio" [name]="'q' + question.id" [value]="option" [(ngModel)]="climateLikert[question.id]" />
+                      <span>{{ option }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+          </section>
+        }
+
+        <section class="question-group">
+          <h3>Escala 0-10</h3>
+          @for (question of scaleSurveyQuestions(); track question.id) {
+            <label class="scale-row">
+              <span>{{ question.id }}. {{ question.text }}</span>
+              <input type="range" min="0" max="10" [name]="'s' + question.id" [(ngModel)]="climateScales[question.id]" />
+              <b>{{ climateScales[question.id] }}</b>
+              <small>{{ question.lowLabel }} / {{ question.highLabel }}</small>
+            </label>
+          }
+        </section>
+
+        <section class="question-group">
+          <h3>Preguntas de texto</h3>
+          @for (question of textSurveyQuestions(); track question.id) {
+            <label>
+              {{ question.id }}. {{ question.text }}
+              @if (question.responseType === 'short_text') {
+                <input [name]="'open' + question.id" [(ngModel)]="climateOpen[question.id]" />
+              } @else {
+                <textarea [name]="'open' + question.id" [(ngModel)]="climateOpen[question.id]"></textarea>
+              }
+            </label>
+          }
+        </section>
+
+        <button class="primary" type="submit" [disabled]="saving()">Enviar encuesta</button>
+      </form>
+    }
+
+    @if (loggedIn() && view() === 'jefe') {
+      <section class="access-panel">
+        <div>
+          <h2>Portal jefe</h2>
+          <p>El jefe ingresa con DNI, ve su equipo y evalua desempeno segun cargo y area.</p>
+        </div>
+        <label>DNI del jefe
+          <input name="bossDni" [(ngModel)]="bossDni" />
+        </label>
+      </section>
+
+      <article class="panel">
+        <h2>Equipo asignado</h2>
+        <div class="status-table">
+          <span>DNI</span><span>Trabajador</span><span>Area</span><span>Cargo</span><span>Estado evaluacion</span>
+          @for (person of bossTeam(); track person.dni) {
+            <b>{{ person.dni }}</b>
+            <strong>{{ person.name }}</strong>
+            <span>{{ person.area }}</span>
+            <span>{{ person.position }}</span>
+            <em [class.done]="person.performanceDone">{{ person.performanceDone ? 'Completada' : 'Pendiente' }}</em>
+          } @empty {
+            <p>No hay colaboradores asociados a este DNI de jefe.</p>
+          }
+        </div>
+      </article>
+
+      <form class="form-view" (ngSubmit)="submitPerformance()">
+        <div class="section-heading">
+          <div>
+            <h2>Evaluacion de desempeno</h2>
+            <p>Formato CONECTA para mandos medios: competencias, objetivos, potencial, capacitacion y feedback.</p>
+          </div>
+          <span class="score-pill">{{ performancePreview() }}%</span>
+        </div>
+
+        <div class="form-grid">
+          <label>Evaluado <input name="evaluado" [(ngModel)]="performanceGeneral['evaluado']" required /></label>
+          <label>Evaluador <input name="evaluador" [(ngModel)]="performanceGeneral['evaluador']" required /></label>
+          <label>Sede <input name="perfSede" [(ngModel)]="performanceGeneral['sede']" /></label>
+          <label>Cargo evaluado <input name="cargoEvaluado" [(ngModel)]="performanceGeneral['cargoEvaluado']" /></label>
+          <label>Cargo evaluador <input name="cargoEvaluador" [(ngModel)]="performanceGeneral['cargoEvaluador']" /></label>
+          <label>Gerencia <input name="gerencia" [(ngModel)]="performanceGeneral['gerencia']" /></label>
+          <label>Area <input name="perfArea" [(ngModel)]="performanceGeneral['area']" /></label>
+          <label>Periodo <input name="periodo" [(ngModel)]="performanceGeneral['periodo']" /></label>
+        </div>
+
+        @for (group of competenciesByGroup(); track group.group) {
+          <section class="question-group">
+            <h3>{{ group.group }}</h3>
+            @for (competency of group.items; track competency.id) {
+              <div class="competency-row">
+                <div>
+                  <h4>{{ competency.name }}</h4>
+                  <p>{{ competency.description }}</p>
+                  <small>{{ competency.keyQuestion }}</small>
+                </div>
+                <label>Puntaje
+                  <select [name]="'score' + competency.id" [(ngModel)]="performanceScores[competency.id]">
+                    <option [ngValue]="1">1 Insuficiente</option>
+                    <option [ngValue]="2">2 Basico</option>
+                    <option [ngValue]="3">3 Medio</option>
+                    <option [ngValue]="4">4 Avanzado</option>
+                    <option [ngValue]="5">5 Experto</option>
+                  </select>
+                </label>
+                <label>Evidencia
+                  <textarea [name]="'evidence' + competency.id" [(ngModel)]="performanceEvidence[competency.id]"></textarea>
+                </label>
+              </div>
+            }
+          </section>
+        }
+
+        <section class="question-group">
+          <h3>Objetivos</h3>
+          @for (row of objectives; track $index) {
+            <div class="objective-grid">
+              <input [name]="'obj' + $index" placeholder="Objetivo" [(ngModel)]="row.objective" />
+              <input [name]="'desc' + $index" placeholder="Descripcion" [(ngModel)]="row.description" />
+              <input [name]="'weight' + $index" type="number" placeholder="Peso" [(ngModel)]="row.weight" />
+              <input [name]="'unit' + $index" placeholder="Unidad" [(ngModel)]="row.unit" />
+              <input [name]="'target' + $index" placeholder="Meta" [(ngModel)]="row.target" />
+              <input [name]="'result' + $index" type="number" min="0" max="100" placeholder="Resultado %" [(ngModel)]="row.result" />
+            </div>
+          }
+          <button class="ghost inline" type="button" (click)="addObjective()">Agregar objetivo</button>
+        </section>
+
+        <section class="question-group">
+          <h3>Potencial, capacitacion y feedback</h3>
+          <label>Potencialidad
+            <select name="potential" [(ngModel)]="potential">
+              <option [ngValue]="1">1 Insuficiente</option>
+              <option [ngValue]="2">2 Basico</option>
+              <option [ngValue]="3">3 Medio</option>
+              <option [ngValue]="4">4 Avanzado</option>
+              <option [ngValue]="5">5 Experto</option>
+            </select>
+          </label>
+          <label>Comentario de potencial <textarea name="potentialComment" [(ngModel)]="potentialComment"></textarea></label>
+
+          @for (row of trainings; track $index) {
+            <div class="training-grid">
+              <input [name]="'priority' + $index" type="number" [(ngModel)]="row.priority" />
+              <input [name]="'course' + $index" list="course-list" placeholder="Curso o programa" [(ngModel)]="row.course" />
+              <input [name]="'trainingComp' + $index" placeholder="Competencia a desarrollar" [(ngModel)]="row.competency" />
+            </div>
+          }
+          <datalist id="course-list">
+            @for (course of suggestedCourses; track course) {
+              <option [value]="course"></option>
+            }
+          </datalist>
+          <button class="ghost inline" type="button" (click)="addTraining()">Agregar capacitacion</button>
+
+          @for (row of feedback; track $index) {
+            <div class="feedback-grid">
+              <input [name]="'fbComp' + $index" placeholder="Competencia" [(ngModel)]="row.competency" />
+              <textarea [name]="'strength' + $index" placeholder="Fortaleza" [(ngModel)]="row.strength"></textarea>
+              <textarea [name]="'improvement' + $index" placeholder="Oportunidad de mejora" [(ngModel)]="row.improvement"></textarea>
+            </div>
+          }
+          <button class="ghost inline" type="button" (click)="addFeedback()">Agregar feedback</button>
+        </section>
+
+        <section class="question-group">
+          <h3>Conformidad del evaluado</h3>
+          <label>Opinion
+            <select name="agreement" [(ngModel)]="agreement">
+              <option>De acuerdo</option>
+              <option>Parcialmente de acuerdo</option>
+              <option>En desacuerdo</option>
+            </select>
+          </label>
+          <label>Motivos o comentario <textarea name="employeeComment" [(ngModel)]="employeeComment"></textarea></label>
+        </section>
+
+        <button class="primary" type="submit" [disabled]="saving()">Guardar evaluacion</button>
+      </form>
+    }
+
+    @if (loggedIn() && view() === 'rrhh') {
+      <section class="access-panel">
+        <div>
+          <h2>Portal RRHH</h2>
+          <p>Control de llenado, programacion, recordatorios, metricas, dashboard y reporteria.</p>
+        </div>
+        <label>DNI RRHH
+          <input name="hrDni" [(ngModel)]="hrDni" />
+        </label>
+      </section>
+
+      <section class="dashboard">
+        <article class="panel form-builder">
+          <div class="builder-head">
+            <div>
+              <h2>Editor de encuestas</h2>
+              <p>RRHH puede editar, agregar, duplicar o eliminar preguntas y definir el tipo de respuesta como en Google Forms.</p>
+            </div>
+            <button class="primary" type="button" (click)="addSurveyQuestion()">Agregar pregunta</button>
+          </div>
+
+          <label class="survey-name">Nombre de encuesta
+            <input name="surveyName" [(ngModel)]="surveyName" (change)="saveSurveyBuilder()" />
+          </label>
+
+          <div class="builder-list">
+            @for (question of surveyQuestions; track question.id) {
+              <article class="builder-card">
+                <div class="question-number">{{ question.id }}</div>
+                <div class="builder-fields">
+                  <input [name]="'builderText' + question.id" [(ngModel)]="question.text" (change)="saveSurveyBuilder()" placeholder="Escribe la pregunta" />
+                  <div class="builder-grid">
+                    <label>Seccion
+                      <input [name]="'builderSection' + question.id" [(ngModel)]="question.section" (change)="saveSurveyBuilder()" />
+                    </label>
+                    <label>Tipo de respuesta
+                      <select [name]="'builderType' + question.id" [(ngModel)]="question.responseType" (change)="updateSurveyQuestionType(question)">
+                        @for (type of responseTypes; track type.value) {
+                          <option [ngValue]="type.value">{{ type.label }}</option>
+                        }
+                      </select>
+                    </label>
+                  </div>
+
+                  @if (question.responseType === 'scale') {
+                    <div class="builder-grid">
+                      <label>Etiqueta minima
+                        <input [name]="'lowLabel' + question.id" [(ngModel)]="question.lowLabel" (change)="saveSurveyBuilder()" />
+                      </label>
+                      <label>Etiqueta maxima
+                        <input [name]="'highLabel' + question.id" [(ngModel)]="question.highLabel" (change)="saveSurveyBuilder()" />
+                      </label>
+                    </div>
+                  }
+
+                  <div class="builder-actions">
+                    <label class="toggle">
+                      <input type="checkbox" [name]="'required' + question.id" [(ngModel)]="question.required" (change)="saveSurveyBuilder()" />
+                      <span>Requerida</span>
+                    </label>
+                    <button class="ghost" type="button" (click)="duplicateSurveyQuestion(question)">Duplicar</button>
+                    <button class="danger" type="button" (click)="deleteSurveyQuestion(question.id)">Eliminar</button>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        </article>
+
+        <div class="kpis">
+          <article class="kpi">
+            <span>Encuestas clima recibidas</span>
+            <strong>{{ summary().climateCount }}</strong>
+            <small>{{ pendingClimate().length }} pendientes</small>
+          </article>
+          <article class="kpi">
+            <span>Promedio clima</span>
+            <strong>{{ summary().climateAverage }}%</strong>
+            <small>{{ summary().climateStatus }}</small>
+          </article>
+          <article class="kpi">
+            <span>Evaluaciones recibidas</span>
+            <strong>{{ summary().performanceCount }}</strong>
+            <small>{{ pendingPerformance().length }} pendientes</small>
+          </article>
+          <article class="kpi">
+            <span>Promedio desempeno</span>
+            <strong>{{ summary().performanceAverage }}%</strong>
+            <small>Competencias 1-5</small>
+          </article>
+        </div>
+
+        <div class="grid two">
+          <article class="panel">
+            <h2>Seguimiento de llenado</h2>
+            <div class="status-table">
+              <span>DNI</span><span>Trabajador</span><span>Area</span><span>Clima</span><span>Desempeno</span>
+              @for (person of employees; track person.dni) {
+                <b>{{ person.dni }}</b>
+                <strong>{{ person.name }}</strong>
+                <span>{{ person.area }}</span>
+                <em [class.done]="person.climateDone">{{ person.climateDone ? 'Completo' : 'Pendiente' }}</em>
+                <em [class.done]="person.performanceDone">{{ person.performanceDone ? 'Completo' : 'Pendiente' }}</em>
+              }
+            </div>
+          </article>
+
+          <article class="panel">
+            <h2>Programacion y recordatorios</h2>
+            <div class="scheduler">
+              <label>Proceso activo <input name="activeCycle" [(ngModel)]="activeCycle" /></label>
+              <label>Canal <input name="reminderChannel" [(ngModel)]="reminderChannel" /></label>
+              <div class="actions">
+                <button class="ghost" type="button" (click)="sendReminder('climate')">Recordar clima</button>
+                <button class="ghost" type="button" (click)="sendReminder('performance')">Recordar desempeno</button>
+                <button class="primary" type="button" (click)="scheduleCycle()">Programar proceso</button>
+              </div>
+              @if (reminderMessage) {
+                <p class="reminder">{{ reminderMessage }}</p>
+              }
+            </div>
+          </article>
+        </div>
+
+        <div class="grid two">
+          <article class="panel">
+            <h2>Clima por dimension</h2>
+            @for (item of summary().dimensionScores; track trackByLabel($index, item)) {
+              <div class="bar-row">
+                <span>{{ item.label }}</span>
+                <div class="bar"><i [style.width.%]="item.value"></i></div>
+                <b>{{ item.value }}%</b>
+              </div>
+            }
+          </article>
+
+          <article class="panel">
+            <h2>Competencias de desempeno</h2>
+            @for (item of summary().competencyScores; track trackByLabel($index, item)) {
+              <div class="bar-row">
+                <span>{{ item.label }}</span>
+                <div class="bar performance"><i [style.width.%]="item.value"></i></div>
+                <b>{{ item.value }}%</b>
+              </div>
+            }
+          </article>
+        </div>
+
+        <article class="panel">
+          <h2>Distribucion de respuestas Likert</h2>
+          <div class="likert-chart">
+            @for (item of summary().likertDistribution; track trackByLabel($index, item)) {
+              <div>
+                <span>{{ item.label }}</span>
+                <strong [style.height.%]="item.value || 2"></strong>
+                <small>{{ item.value }}%</small>
+              </div>
+            }
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Registros y reporteria</h2>
+          <div class="records">
+            @for (record of records(); track record.createdAt) {
+              <article>
+                <strong>{{ record.type === 'climate' ? 'Clima laboral' : 'Evaluacion de desempeno' }}</strong>
+                <span>{{ record.createdAt | date:'short' }}</span>
+                <code>{{ record | json }}</code>
+              </article>
+            } @empty {
+              <p>No hay registros todavia. RRHH vera aqui las encuestas y evaluaciones recibidas.</p>
+            }
+          </div>
+        </article>
+      </section>
+    }
+  </section>
+</main>
