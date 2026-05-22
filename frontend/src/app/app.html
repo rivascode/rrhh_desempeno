@@ -19,6 +19,7 @@
       }
       @if (loggedIn() && activeRole() === 'rrhh') {
         <button [class.active]="view() === 'rrhh'" (click)="setView('rrhh')">Portal RRHH</button>
+        <button [class.active]="view() === 'encuestas'" (click)="setView('encuestas')">Encuestas</button>
       }
     </nav>
 
@@ -36,18 +37,7 @@
     <header class="topbar">
       <div>
         <h1>Plataforma RRHH</h1>
-        <p>Acceso segmentado por DNI para encuesta, evaluacion y gestion de resultados.</p>
       </div>
-      @if (loggedIn()) {
-        <div class="session-box">
-          <span>{{ roleLabel() }}</span>
-          <strong>DNI {{ loginDni }}</strong>
-          @if (activeRole() === 'rrhh') {
-            <button class="ghost" (click)="exportJson()">Exportar resultados</button>
-          }
-          <button class="ghost" (click)="logout()">Salir</button>
-        </div>
-      }
     </header>
     }
 
@@ -106,10 +96,6 @@
 
           <label>DNI
             <input name="loginDni" inputmode="numeric" autocomplete="username" [(ngModel)]="loginDni" />
-          </label>
-
-          <label>Contrasena
-            <input name="loginPassword" type="password" autocomplete="current-password" [(ngModel)]="loginPassword" />
           </label>
 
           <button class="primary login-submit" type="submit">Ingresar</button>
@@ -381,14 +367,14 @@
       </form>
     }
 
-    @if (loggedIn() && view() === 'rrhh') {
+    @if (loggedIn() && activeRole() === 'rrhh' && view() === 'encuestas') {
       <section class="access-panel">
         <div>
-          <h2>Portal RRHH</h2>
-          <p>Control de llenado, programacion, recordatorios, metricas, dashboard y reporteria.</p>
+          <h2>Encuestas</h2>
+          <p>Administre las encuestas, preguntas, secciones, opciones y estado de publicacion.</p>
         </div>
         <label>DNI RRHH
-          <input name="hrDni" [(ngModel)]="hrDni" />
+          <input name="surveyHrDni" [(ngModel)]="hrDni" />
         </label>
       </section>
 
@@ -416,10 +402,27 @@
                     <span>{{ surveyTypeCount(survey, 'multiple_choice') }} multiple</span>
                   </div>
                 </div>
-                <button class="primary" type="button" (click)="openSurveyEditor(survey.id)">Editar</button>
+                <div class="survey-ops">
+                  <div class="survey-scheduler">
+                    <label>Proceso
+                      <input [name]="'cycle' + survey.id" [ngModel]="survey.cycle" (ngModelChange)="updateSurveyCycle(survey, $event)" />
+                    </label>
+                    <label>Canal
+                      <input [name]="'channel' + survey.id" [ngModel]="survey.channel" (ngModelChange)="updateSurveyChannel(survey, $event)" />
+                    </label>
+                  </div>
+                  <div class="actions">
+                    <button class="ghost" type="button" (click)="sendSurveyReminder(survey)">Recordar pendientes</button>
+                    <button class="ghost" type="button" (click)="scheduleSurvey(survey)">Programar</button>
+                    <button class="primary" type="button" (click)="openSurveyEditor(survey.id)">Editar</button>
+                  </div>
+                </div>
               </article>
             }
           </div>
+          @if (reminderMessage) {
+            <p class="reminder">{{ reminderMessage }}</p>
+          }
         </article>
 
         @if (editingSurvey) {
@@ -523,60 +526,77 @@
             </article>
           </div>
         }
+      </section>
+    }
+
+    @if (loggedIn() && view() === 'rrhh') {
+      <section class="access-panel">
+        <div>
+          <h2>Portal RRHH</h2>
+          <p>Control de llenado, programacion, recordatorios, metricas, dashboard y reporteria.</p>
+        </div>
+        <label>DNI RRHH
+          <input name="hrDni" [(ngModel)]="hrDni" />
+        </label>
+      </section>
+
+      <section class="dashboard">
         <div class="kpis">
-          <article class="kpi">
-            <span>Encuestas clima recibidas</span>
-            <strong>{{ summary().climateCount }}</strong>
-            <small>{{ pendingClimate().length }} pendientes</small>
-          </article>
-          <article class="kpi">
-            <span>Promedio clima</span>
-            <strong>{{ summary().climateAverage }}%</strong>
-            <small>{{ summary().climateStatus }}</small>
-          </article>
-          <article class="kpi">
-            <span>Evaluaciones recibidas</span>
-            <strong>{{ summary().performanceCount }}</strong>
-            <small>{{ pendingPerformance().length }} pendientes</small>
-          </article>
-          <article class="kpi">
-            <span>Promedio desempeno</span>
-            <strong>{{ summary().performanceAverage }}%</strong>
-            <small>Competencias 1-5</small>
-          </article>
+          @for (process of processSummaries(); track process.id) {
+            <article class="kpi process-kpi">
+              <span>{{ process.kind }}</span>
+              <strong>{{ process.progress }}%</strong>
+              <small>{{ process.completed }} de {{ process.target }} completados · {{ process.pending }} pendientes</small>
+              <div class="mini-bar"><i [style.width.%]="process.progress"></i></div>
+            </article>
+          }
         </div>
 
-        <div class="grid two">
-          <article class="panel">
-            <h2>Seguimiento de llenado</h2>
-            <div class="status-table">
-              <span>DNI</span><span>Trabajador</span><span>Area</span><span>Clima</span><span>Desempeno</span>
-              @for (person of employees; track person.dni) {
-                <b>{{ person.dni }}</b>
-                <strong>{{ person.name }}</strong>
-                <span>{{ person.area }}</span>
-                <em [class.done]="person.climateDone">{{ person.climateDone ? 'Completo' : 'Pendiente' }}</em>
-                <em [class.done]="person.performanceDone">{{ person.performanceDone ? 'Completo' : 'Pendiente' }}</em>
-              }
+        <article class="panel tracking-panel">
+          <div class="builder-head compact-head">
+            <div>
+              <h2>Seguimiento de llenado</h2>
+              <p>Vista resumida y filtrable para operar listas grandes sin cargar la pantalla con cientos de filas.</p>
             </div>
-          </article>
+            <strong>{{ trackingResultCount() }} resultados</strong>
+          </div>
 
-          <article class="panel">
-            <h2>Programacion y recordatorios</h2>
-            <div class="scheduler">
-              <label>Proceso activo <input name="activeCycle" [(ngModel)]="activeCycle" /></label>
-              <label>Canal <input name="reminderChannel" [(ngModel)]="reminderChannel" /></label>
-              <div class="actions">
-                <button class="ghost" type="button" (click)="sendReminder('climate')">Recordar clima</button>
-                <button class="ghost" type="button" (click)="sendReminder('performance')">Recordar desempeno</button>
-                <button class="primary" type="button" (click)="scheduleCycle()">Programar proceso</button>
-              </div>
-              @if (reminderMessage) {
-                <p class="reminder">{{ reminderMessage }}</p>
-              }
-            </div>
-          </article>
-        </div>
+          <div class="tracking-tools">
+            <label>Buscar trabajador
+              <input name="trackingQuery" placeholder="DNI, nombre, area o cargo" [(ngModel)]="trackingQuery" />
+            </label>
+            <label>Proceso
+              <select name="trackingProcess" [(ngModel)]="trackingProcessId">
+                <option value="all">Todos los procesos</option>
+                @for (process of processSummaries(); track process.id) {
+                  <option [value]="process.id">{{ process.name }}</option>
+                }
+              </select>
+            </label>
+            <label>Estado
+              <select name="trackingStatus" [(ngModel)]="trackingStatus">
+                <option value="all">Todos</option>
+                <option value="pending">Con pendientes</option>
+                <option value="done">Completos</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="tracking-table">
+            <span>DNI</span><span>Trabajador</span><span>Area</span><span>Completados</span><span>Pendientes</span>
+            @for (person of filteredTrackingPeople(); track person.dni) {
+              <b>{{ person.dni }}</b>
+              <strong>{{ person.name }}</strong>
+              <span>{{ person.area }}</span>
+              <em [class.done]="completedProcessCount(person) === 2">{{ completedProcessCount(person) }}/2</em>
+              <span>{{ pendingProcessLabels(person) }}</span>
+            }
+          </div>
+
+          @if (trackingResultCount() > filteredTrackingPeople().length) {
+            <p class="table-note">Mostrando 12 de {{ trackingResultCount() }} resultados. Use busqueda o filtros para acotar la lista.</p>
+          }
+        </article>
 
         <div class="grid two">
           <article class="panel">

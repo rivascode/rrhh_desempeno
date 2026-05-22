@@ -582,6 +582,25 @@ h3 {
   font-size: 32px;
 }
 
+.process-kpi {
+  align-content: start;
+}
+
+.mini-bar {
+  height: 8px;
+  margin-top: 6px;
+  background: #e6edf3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mini-bar i {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  background: #126f9a;
+}
+
 .grid.two {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -835,6 +854,65 @@ textarea {
   background: #ecfdf3;
 }
 
+.tracking-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.compact-head {
+  margin-bottom: 0;
+  border-top-width: 0;
+  align-items: center;
+}
+
+.compact-head p,
+.table-note {
+  margin: 6px 0 0;
+  color: #697889;
+}
+
+.tracking-tools {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(180px, .8fr) minmax(160px, .7fr);
+  gap: 10px;
+}
+
+.tracking-table {
+  display: grid;
+  grid-template-columns: 110px minmax(170px, 1.2fr) minmax(140px, .8fr) 120px minmax(220px, 1.4fr);
+  gap: 1px;
+  overflow: auto;
+  border: 1px solid #dfe7ef;
+  border-radius: 8px;
+}
+
+.tracking-table > * {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 9px 10px;
+  background: #fff;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tracking-table > span:nth-child(-n + 5) {
+  background: #eef3f7;
+  font-weight: 800;
+}
+
+.tracking-table em {
+  font-style: normal;
+  color: #9a3412;
+  background: #fff7ed;
+  font-weight: 800;
+}
+
+.tracking-table em.done {
+  color: #166534;
+  background: #ecfdf3;
+}
+
 .scheduler {
   display: grid;
   gap: 12px;
@@ -877,9 +955,9 @@ textarea {
 
 .survey-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .8fr);
   gap: 18px;
-  align-items: center;
+  align-items: start;
   padding: 16px;
   border: 1px solid #dfe7ef;
   border-radius: 8px;
@@ -908,6 +986,17 @@ textarea {
   color: #26394d;
   font-size: 12px;
   font-weight: 800;
+}
+
+.survey-ops {
+  display: grid;
+  gap: 10px;
+}
+
+.survey-scheduler {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .editor-overlay {
@@ -1176,6 +1265,7 @@ code {
   .grid.two,
   .form-grid,
   .access-panel,
+  .tracking-tools,
   .options,
   .competency-row,
   .objective-grid,
@@ -1190,7 +1280,8 @@ code {
     flex-direction: column;
   }
 
-  .status-table {
+  .status-table,
+  .tracking-table {
     grid-template-columns: 1fr;
   }
 
@@ -1204,7 +1295,8 @@ code {
   .builder-main-row,
   .builder-grid,
   .survey-settings,
-  .survey-row {
+  .survey-row,
+  .survey-scheduler {
     grid-template-columns: 1fr;
   }
 

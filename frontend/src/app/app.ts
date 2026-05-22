@@ -14,7 +14,7 @@ import {
   suggestedCourses,
 } from './form-data';
 
-type ViewMode = 'portal' | 'trabajador' | 'jefe' | 'rrhh';
+type ViewMode = 'portal' | 'trabajador' | 'jefe' | 'rrhh' | 'encuestas';
 type PortalRole = 'trabajador' | 'jefe' | 'rrhh';
 type ResponseType = 'likert' | 'single_choice' | 'multiple_choice' | 'short_text' | 'long_text' | 'scale';
 
@@ -102,7 +102,20 @@ interface SurveyDefinition {
   description: string;
   audience: 'Trabajador' | 'Jefe' | 'RRHH';
   status: 'Activa' | 'Borrador';
+  cycle: string;
+  channel: string;
   questions: SurveyQuestion[];
+}
+
+interface ProcessSummary {
+  id: string;
+  name: string;
+  kind: string;
+  target: number;
+  completed: number;
+  pending: number;
+  progress: number;
+  status: string;
 }
 
 const apiBase = 'http://127.0.0.1:8081/api/index.php';
@@ -152,6 +165,9 @@ export class App {
   protected activeCycle = 'Evaluacion anual 2026';
   protected reminderChannel = 'Correo y WhatsApp';
   protected reminderMessage = '';
+  protected trackingQuery = '';
+  protected trackingProcessId = 'all';
+  protected trackingStatus: 'all' | 'pending' | 'done' = 'all';
   protected surveys: SurveyDefinition[] = [
     {
       id: 'clima-laboral',
@@ -159,6 +175,8 @@ export class App {
       description: 'Encuesta para trabajadores basada en los libros de clima laboral.',
       audience: 'Trabajador',
       status: 'Activa',
+      cycle: 'Evaluacion anual 2026',
+      channel: 'Correo y WhatsApp',
       questions: this.defaultClimateSurveyQuestions(),
     },
   ];
@@ -230,11 +248,6 @@ export class App {
   }
 
   protected login(): void {
-    if (!this.loginDni.trim() || !this.loginPassword.trim()) {
-      this.message.set('Ingrese DNI, contrasena y portal para continuar.');
-      return;
-    }
-
     this.loggedIn.set(true);
     this.activeRole.set(this.loginPortal);
 
@@ -288,6 +301,79 @@ export class App {
 
   protected scheduleCycle(): void {
     this.reminderMessage = `Programacion creada para ${this.activeCycle}: apertura, recordatorio intermedio y cierre con reporte para RRHH.`;
+  }
+
+  protected processSummaries(): ProcessSummary[] {
+    const surveyProcesses = this.surveys.map((survey) => {
+      const target = this.processTarget(survey.audience);
+      const completed = survey.id === 'clima-laboral' ? this.employees.filter((employee) => employee.climateDone).length : 0;
+      const pending = Math.max(target - completed, 0);
+      return {
+        id: survey.id,
+        name: survey.name,
+        kind: survey.status === 'Activa' ? `Encuesta ${survey.audience}` : `Borrador ${survey.audience}`,
+        target,
+        completed,
+        pending,
+        progress: target ? Math.round((completed / target) * 100) : 0,
+        status: survey.status,
+      };
+    });
+    const performanceTarget = this.employees.length;
+    const performanceCompleted = this.employees.filter((employee) => employee.performanceDone).length;
+    return [
+      ...surveyProcesses,
+      {
+        id: 'performance',
+        name: 'Evaluacion de desempeno',
+        kind: 'Evaluacion Jefe',
+        target: performanceTarget,
+        completed: performanceCompleted,
+        pending: Math.max(performanceTarget - performanceCompleted, 0),
+        progress: performanceTarget ? Math.round((performanceCompleted / performanceTarget) * 100) : 0,
+        status: 'Activa',
+      },
+    ];
+  }
+
+  protected filteredTrackingPeople(): PersonStatus[] {
+    return this.trackingPeople().slice(0, 12);
+  }
+
+  protected trackingResultCount(): number {
+    return this.trackingPeople().length;
+  }
+
+  protected completedProcessCount(employee: PersonStatus): number {
+    return Number(employee.climateDone) + Number(employee.performanceDone);
+  }
+
+  protected pendingProcessLabels(employee: PersonStatus): string {
+    const pending = [
+      !employee.climateDone ? 'Clima laboral' : '',
+      !employee.performanceDone ? 'Desempeno' : '',
+    ].filter(Boolean);
+    return pending.length ? pending.join(', ') : 'Sin pendientes';
+  }
+
+  protected updateSurveyCycle(survey: SurveyDefinition, value: string): void {
+    survey.cycle = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected updateSurveyChannel(survey: SurveyDefinition, value: string): void {
+    survey.channel = value;
+    this.saveSurveyBuilder();
+  }
+
+  protected scheduleSurvey(survey: SurveyDefinition): void {
+    this.reminderMessage = `Programacion creada para ${survey.name}: ${survey.cycle || this.activeCycle}.`;
+    this.saveSurveyBuilder();
+  }
+
+  protected sendSurveyReminder(survey: SurveyDefinition): void {
+    const summary = this.processSummaries().find((item) => item.id === survey.id);
+    this.reminderMessage = `Recordatorio preparado para ${summary?.pending ?? 0} pendientes de ${survey.name} via ${survey.channel || this.reminderChannel}.`;
   }
 
   protected questionsByDimension(): { dimension: string; questions: SurveyQuestion[] }[] {
@@ -457,6 +543,8 @@ export class App {
         description: 'Encuesta en borrador para configurar.',
         audience: 'Trabajador',
         status: 'Borrador',
+        cycle: this.activeCycle,
+        channel: this.reminderChannel,
         questions: [
           {
             id: 1,
@@ -620,6 +708,8 @@ export class App {
       if (Array.isArray(stored?.surveys)) {
         this.surveys = stored.surveys.map((survey: SurveyDefinition) => ({
           ...survey,
+          cycle: survey.cycle ?? this.activeCycle,
+          channel: survey.channel ?? this.reminderChannel,
           questions: this.hydrateSurveyQuestions(survey.id, survey.questions),
         }));
         this.activeSurveyId = stored.activeSurveyId ?? this.surveys[0]?.id ?? 'clima-laboral';
@@ -648,6 +738,32 @@ export class App {
     if (question.responseType === 'likert') return question.options?.length ? question.options : [...this.likertDefaultOptions];
     if (question.responseType === 'single_choice' || question.responseType === 'multiple_choice') return question.options?.length ? question.options : ['Opcion 1'];
     return question.options;
+  }
+
+  private processTarget(audience: SurveyDefinition['audience']): number {
+    if (audience === 'Trabajador') return this.employees.length;
+    if (audience === 'Jefe') return new Set(this.employees.map((employee) => employee.bossDni)).size;
+    return 1;
+  }
+
+  private trackingPeople(): PersonStatus[] {
+    const query = this.trackingQuery.trim().toLowerCase();
+    return this.employees.filter((employee) => {
+      const matchesQuery = !query || `${employee.dni} ${employee.name} ${employee.area} ${employee.position}`.toLowerCase().includes(query);
+      const done = this.isPersonDoneForSelectedProcess(employee);
+      const matchesStatus =
+        this.trackingStatus === 'all' ||
+        (this.trackingStatus === 'done' && done) ||
+        (this.trackingStatus === 'pending' && !done);
+      return matchesQuery && matchesStatus;
+    });
+  }
+
+  private isPersonDoneForSelectedProcess(employee: PersonStatus): boolean {
+    if (this.trackingProcessId === 'clima-laboral') return employee.climateDone;
+    if (this.trackingProcessId === 'performance') return employee.performanceDone;
+    if (this.trackingProcessId !== 'all') return false;
+    return employee.climateDone && employee.performanceDone;
   }
 
   private ensureSurveyAnswerDefaults(): void {
