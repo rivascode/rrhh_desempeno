@@ -313,6 +313,30 @@
           </div>
         </div>
 
+        <section class="question-group reference-panel">
+          <div class="reference-grid">
+            <div>
+              <h3>Criterios CONECTA</h3>
+              <div class="level-list">
+                @for (level of performanceLevels; track level.value) {
+                  <article class="level-card">
+                    <b>{{ level.value }} {{ level.label }}</b>
+                    <span>{{ level.description }}</span>
+                  </article>
+                }
+              </div>
+            </div>
+            <div>
+              <h3>Indicaciones</h3>
+              <ul class="guideline-list">
+                @for (instruction of performanceInstructions; track instruction) {
+                  <li>{{ instruction }}</li>
+                }
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <div class="form-grid">
           <label>Evaluado <input name="evaluado" [(ngModel)]="performanceGeneral['evaluado']" required /></label>
           <label>Evaluador <input name="evaluador" [(ngModel)]="performanceGeneral['evaluador']" required /></label>
@@ -336,11 +360,9 @@
                 </div>
                 <label>Puntaje
                   <select [name]="'score' + competency.id" [(ngModel)]="performanceScores[competency.id]">
-                    <option [ngValue]="1">1 Insuficiente</option>
-                    <option [ngValue]="2">2 Basico</option>
-                    <option [ngValue]="3">3 Medio</option>
-                    <option [ngValue]="4">4 Avanzado</option>
-                    <option [ngValue]="5">5 Experto</option>
+                    @for (level of performanceLevels; track level.value) {
+                      <option [ngValue]="level.value">{{ level.value }} {{ level.label }}</option>
+                    }
                   </select>
                 </label>
                 <label>Evidencia
@@ -352,15 +374,19 @@
         }
 
         <section class="question-group">
-          <h3>Objetivos</h3>
+          <h3>Establecimiento de objetivos</h3>
+          <p class="section-note">Registre los objetivos mas importantes del periodo. No es obligatorio completar los cinco si no aplican.</p>
           @for (row of objectives; track $index) {
             <div class="objective-grid">
               <input [name]="'obj' + $index" placeholder="Objetivo" [(ngModel)]="row.objective" />
               <input [name]="'desc' + $index" placeholder="Descripcion" [(ngModel)]="row.description" />
               <input [name]="'weight' + $index" type="number" placeholder="Peso" [(ngModel)]="row.weight" />
               <input [name]="'unit' + $index" placeholder="Unidad" [(ngModel)]="row.unit" />
+              <input [name]="'currentLevel' + $index" placeholder="Niv. actual" [(ngModel)]="row.currentLevel" />
+              <input [name]="'optimalLevel' + $index" placeholder="Niv. optimo" [(ngModel)]="row.optimalLevel" />
               <input [name]="'target' + $index" placeholder="Meta" [(ngModel)]="row.target" />
               <input [name]="'result' + $index" type="number" min="0" max="100" placeholder="Resultado %" [(ngModel)]="row.result" />
+              <input [name]="'evaluation' + $index" placeholder="Evaluacion" [(ngModel)]="row.evaluation" />
             </div>
           }
           <button class="ghost inline" type="button" (click)="addObjective()">Agregar objetivo</button>
@@ -370,15 +396,23 @@
           <h3>Potencial, capacitacion y feedback</h3>
           <label>Potencialidad
             <select name="potential" [(ngModel)]="potential">
-              <option [ngValue]="1">1 Insuficiente</option>
-              <option [ngValue]="2">2 Basico</option>
-              <option [ngValue]="3">3 Medio</option>
-              <option [ngValue]="4">4 Avanzado</option>
-              <option [ngValue]="5">5 Experto</option>
+              @for (level of performanceLevels; track level.value) {
+                <option [ngValue]="level.value">{{ level.value }} {{ level.label }}</option>
+              }
             </select>
           </label>
           <label>Comentario de potencial <textarea name="potentialComment" [(ngModel)]="potentialComment"></textarea></label>
+          <label>Objetivos profesionales a 5 anos <textarea name="professionalObjectives" [(ngModel)]="professionalObjectives"></textarea></label>
 
+          <div class="section-title-row">
+            <h3>Capacitaciones sugeridas</h3>
+            <span>2 a 3 prioridades</span>
+          </div>
+          <ul class="guideline-list compact">
+            @for (guideline of trainingGuidelines; track guideline) {
+              <li>{{ guideline }}</li>
+            }
+          </ul>
           @for (row of trainings; track $index) {
             <div class="training-grid">
               <input [name]="'priority' + $index" type="number" [(ngModel)]="row.priority" />
@@ -393,6 +427,8 @@
           </datalist>
           <button class="ghost inline" type="button" (click)="addTraining()">Agregar capacitacion</button>
 
+          <h3>Feedback</h3>
+          <p class="section-note">Registre por lo menos cinco competencias con una fortaleza y una oportunidad de mejora sustentada en evidencias.</p>
           @for (row of feedback; track $index) {
             <div class="feedback-grid">
               <input [name]="'fbComp' + $index" placeholder="Competencia" [(ngModel)]="row.competency" />

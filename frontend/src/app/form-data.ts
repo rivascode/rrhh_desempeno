@@ -27,6 +27,12 @@ export interface Competency {
   keyQuestion: string;
 }
 
+export interface PerformanceLevel {
+  value: number;
+  label: string;
+  description: string;
+}
+
 export const likertOptions: LikertOption[] = ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'];
 
 export const likertScore: Record<LikertOption, number> = {
@@ -36,6 +42,29 @@ export const likertScore: Record<LikertOption, number> = {
   'CASI SIEMPRE': 4,
   SIEMPRE: 5,
 };
+
+export const performanceLevels: PerformanceLevel[] = [
+  { value: 1, label: 'Insuficiente', description: 'El desempeno es deficiente.' },
+  { value: 2, label: 'Basico', description: 'El desempeno es regular o minimo indispensable.' },
+  { value: 3, label: 'Medio', description: 'El desempeno cumple exitosamente las expectativas.' },
+  { value: 4, label: 'Avanzado', description: 'El desempeno es significativamente mejor de lo esperado.' },
+  { value: 5, label: 'Experto', description: 'El desempeno es muy sobresaliente.' },
+];
+
+export const performanceInstructions = [
+  'Medicion dirigida a puestos de Coordinador, Supervisor y Sectorista.',
+  'Debe ser realizada por el jefe inmediato superior del evaluado.',
+  'Evaluar todo el periodo definido, no solo sucesos recientes.',
+  'Redactar evidencias claras y concisas para sustentar cada competencia.',
+  'Usar el diccionario de competencias como apoyo para interpretar los niveles.',
+];
+
+export const trainingGuidelines = [
+  'La capacitacion debe aportar al desarrollo de la organizacion y a la consecucion de sus objetivos.',
+  'No es premio ni castigo: responde a una necesidad detectada en la evaluacion.',
+  'Considerar de 2 a 3 capacitaciones en orden de prioridad.',
+  'Los cursos deben estar ligados a oportunidades de mejora y competencias evaluadas.',
+];
 
 export const climateQuestions: ClimateQuestion[] = [
   { id: 1, dimension: 'Generalidades', text: 'Al finalizar mi jornada diaria, me siento satisfecho con el trabajo que realizo.' },
@@ -111,13 +140,58 @@ export const competencies: Competency[] = [
 
 export const suggestedCourses = [
   'Inteligencia Emocional',
+  'El poder de la Automotivacion',
+  'Actitud positiva',
+  'Flexibilidad y cambio',
+  'Manejo de Estres',
+  'Proactividad y Compromiso',
+  'Business Intelligence',
+  'Gestion del Cambio',
   'Gestion del Tiempo',
+  'Microsoft Project Management',
+  'Planeamiento estrategico',
+  'Gestion de Proyectos',
   'Comunicacion Asertiva',
+  'Redaccion Ejecutiva',
+  'Presentaciones de Alto Impacto',
+  'Herramientas web 2.0 para presentaciones efectivas',
+  'Power Point',
   'Taller de Trabajo en Equipo',
+  'Formacion de Equipos de Alto Desempeno',
+  'Empowerment',
+  'Engagement',
+  'Team Coaching',
+  'Efectividad y Eficiencia Operativa',
   'Gestion por Indicadores',
+  'Balanced Scorecard',
+  'Optimizacion de Procesos',
+  'Gestion de la Calidad',
+  'Contabilidad para No Especialistas',
+  'Finanzas para No Especialistas',
+  'Excel Basico',
+  'Excel Intermedio',
+  'Excel Avanzado',
+  'Manejo de Base de Datos',
+  'Pensamiento Estrategico y Sistemico',
+  'Gestion de la Innovacion',
+  'Rol del Lider',
+  'Flexibilidad y Estilo de Liderazgo',
+  'Liderazgo Inspirador',
   'Seguimiento y Feedback',
+  'Coaching',
+  'Comunicacion Estrategica',
   'Manejo de Conflictos',
   'Herramientas para la Gestion de Personas',
+  'Comercio exterior y tratados comerciales',
+  'Finanzas personales',
+  'Gestion de terminales',
+  'Leyes y normas - Regimenes aduaneros',
+  'Partidas arancelarias y certificados de origen',
+  'Procesos de Exportacion',
+  'Proceso de Liquidacion',
+  'Proceso de Importaciones',
   'Seguridad y Salud en el trabajo',
+  'Tributacion aduanera',
+  'Sintad',
   'Sistemas y seguridad de la informacion',
 ];

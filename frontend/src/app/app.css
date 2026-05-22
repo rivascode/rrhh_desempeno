@@ -819,6 +819,53 @@ textarea {
   padding: 18px;
 }
 
+.reference-panel {
+  background: #f8fafc;
+}
+
+.reference-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(260px, .8fr);
+  gap: 18px;
+}
+
+.level-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.level-card {
+  border: 1px solid #dce5ee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.level-card b {
+  display: block;
+  margin-bottom: 4px;
+  color: #17202a;
+}
+
+.level-card span,
+.section-note {
+  color: #5f6f84;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.guideline-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #42526a;
+  line-height: 1.5;
+}
+
+.guideline-list.compact {
+  margin-bottom: 12px;
+}
+
 .section-title-row {
   display: flex;
   align-items: center;
@@ -902,7 +949,7 @@ textarea {
 
 .objective-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1.3fr) 90px minmax(130px, .7fr) minmax(110px, .6fr) 120px;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -1566,8 +1613,10 @@ code {
   }
 
   .objective-grid,
+  .reference-grid,
   .training-grid,
   .feedback-grid {
+    grid-template-columns: 1fr;
     gap: 10px;
   }
 

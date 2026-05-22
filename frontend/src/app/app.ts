@@ -10,8 +10,11 @@ import {
   likertOptions,
   likertScore,
   openQuestions,
+  performanceInstructions,
+  performanceLevels,
   scaleQuestions,
   suggestedCourses,
+  trainingGuidelines,
 } from './form-data';
 import { getModuleContext } from './integration';
 import { PortalRole, ResponseType, ViewMode } from './types';
@@ -36,6 +39,7 @@ interface PerformanceSubmission {
   evidence: Record<string, string>;
   potential: number;
   potentialComment: string;
+  professionalObjectives: string;
   objectives: ObjectiveRow[];
   trainings: TrainingRow[];
   feedback: FeedbackRow[];
@@ -48,8 +52,11 @@ interface ObjectiveRow {
   description: string;
   weight: number;
   unit: string;
+  currentLevel: string;
+  optimalLevel: string;
   target: string;
   result: number;
+  evaluation: string;
 }
 
 interface TrainingRow {
@@ -150,6 +157,9 @@ export class App {
   protected readonly likertDefaultOptions = ['NUNCA', 'CASI NUNCA', 'A VECES', 'CASI SIEMPRE', 'SIEMPRE'];
   protected readonly likertOptions = likertOptions;
   protected readonly competencies = competencies;
+  protected readonly performanceLevels = performanceLevels;
+  protected readonly performanceInstructions = performanceInstructions;
+  protected readonly trainingGuidelines = trainingGuidelines;
   protected readonly suggestedCourses = suggestedCourses;
   protected readonly employees: PersonStatus[] = this.moduleContext.employees.map((employee) => ({
     ...employee,
@@ -218,16 +228,18 @@ export class App {
   protected performanceDrafts: Record<string, boolean> = {};
   protected potential = 3;
   protected potentialComment = '';
+  protected professionalObjectives = '';
   protected agreement = 'De acuerdo';
   protected employeeComment = '';
   protected objectives: ObjectiveRow[] = [
-    { objective: '', description: '', weight: 40, unit: '% Cumplimiento', target: '100%', result: 80 },
-    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', target: '100%', result: 80 },
-    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', target: '100%', result: 80 },
+    { objective: '', description: '', weight: 40, unit: '% Cumplimiento', currentLevel: '', optimalLevel: '', target: '100%', result: 80, evaluation: '' },
+    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', currentLevel: '', optimalLevel: '', target: '100%', result: 80, evaluation: '' },
+    { objective: '', description: '', weight: 30, unit: '% Cumplimiento', currentLevel: '', optimalLevel: '', target: '100%', result: 80, evaluation: '' },
   ];
   protected trainings: TrainingRow[] = [
     { course: 'Seguimiento y Feedback', competency: 'Liderazgo', priority: 1 },
     { course: 'Gestion por Indicadores', competency: 'Orientacion al logro', priority: 2 },
+    { course: '', competency: '', priority: 3 },
   ];
   protected feedback: FeedbackRow[] = competencies.slice(0, 5).map((item) => ({
     competency: item.name,
@@ -739,6 +751,7 @@ export class App {
       evidence: { ...this.performanceEvidence },
       potential: Number(this.potential || 0),
       potentialComment: this.potentialComment,
+      professionalObjectives: this.professionalObjectives,
       objectives: this.objectives.map((row) => ({ ...row, weight: Number(row.weight || 0), result: Number(row.result || 0) })),
       trainings: this.trainings.map((row) => ({ ...row, priority: Number(row.priority || 0) })),
       feedback: this.feedback.map((row) => ({ ...row })),
@@ -759,7 +772,17 @@ export class App {
   }
 
   protected addObjective(): void {
-    this.objectives.push({ objective: '', description: '', weight: 0, unit: '% Cumplimiento', target: '', result: 0 });
+    this.objectives.push({
+      objective: '',
+      description: '',
+      weight: 0,
+      unit: '% Cumplimiento',
+      currentLevel: '',
+      optimalLevel: '',
+      target: '',
+      result: 0,
+      evaluation: '',
+    });
   }
 
   protected addTraining(): void {
