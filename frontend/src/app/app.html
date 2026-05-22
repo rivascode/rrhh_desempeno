@@ -23,12 +23,6 @@
       <button class="logout-link" type="button" (click)="logout()">Cerrar sesion</button>
     </nav>
 
-    <section class="source-card">
-      <strong>Estructura definida</strong>
-      <span>1. Clima laboral por trabajador</span>
-      <span>2. Desempeno por jefe</span>
-      <span>3. RRHH: control, dashboard y reportes</span>
-    </section>
   </aside>
   }
 
@@ -116,16 +110,6 @@
     }
 
     @if (loggedIn() && view() === 'trabajador') {
-      <section class="access-panel">
-        <div>
-          <h2>Portal trabajador</h2>
-          <p>Revise sus encuestas activas, guarde avances por seccion y envie cuando termine.</p>
-        </div>
-        <label>DNI del trabajador
-          <input name="workerDni" [(ngModel)]="workerDni" />
-        </label>
-      </section>
-
       <section class="survey-dashboard">
         @for (survey of activeWorkerSurveys(); track survey.id) {
           <article class="worker-survey-card" [class.active]="fillingSurveyId === survey.id">
