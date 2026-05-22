@@ -13,10 +13,8 @@ import {
   scaleQuestions,
   suggestedCourses,
 } from './form-data';
-
-type ViewMode = 'portal' | 'trabajador' | 'jefe' | 'rrhh' | 'encuestas';
-type PortalRole = 'trabajador' | 'jefe' | 'rrhh';
-type ResponseType = 'likert' | 'single_choice' | 'multiple_choice' | 'short_text' | 'long_text' | 'scale';
+import { getModuleContext } from './integration';
+import { PortalRole, ResponseType, ViewMode } from './types';
 
 interface ClimateSubmission {
   type: 'climate';
@@ -120,8 +118,6 @@ interface ProcessSummary {
   status: string;
 }
 
-const apiBase = 'http://127.0.0.1:8081/api/index.php';
-
 @Component({
   selector: 'app-root',
   imports: [FormsModule, DatePipe, JsonPipe],
@@ -130,10 +126,13 @@ const apiBase = 'http://127.0.0.1:8081/api/index.php';
 })
 export class App {
   private readonly http = inject(HttpClient);
+  private readonly moduleContext = getModuleContext();
+  protected readonly embeddedMode = this.moduleContext.mode === 'embedded';
+  private readonly apiBase = this.moduleContext.apiBase ?? '';
 
-  protected readonly view = signal<ViewMode>('portal');
-  protected readonly loggedIn = signal(false);
-  protected readonly activeRole = signal<PortalRole>('trabajador');
+  protected readonly view = signal<ViewMode>(this.embeddedMode ? this.defaultViewForRole(this.moduleContext.currentUser.activeRole) : 'portal');
+  protected readonly loggedIn = signal(this.embeddedMode);
+  protected readonly activeRole = signal<PortalRole>(this.moduleContext.currentUser.activeRole);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
   protected readonly records = signal<(ClimateSubmission | PerformanceSubmission)[]>([]);
@@ -152,16 +151,15 @@ export class App {
   protected readonly likertOptions = likertOptions;
   protected readonly competencies = competencies;
   protected readonly suggestedCourses = suggestedCourses;
-  protected readonly employees: PersonStatus[] = [
-    { dni: '40112233', name: 'Ana Torres', area: 'Importacion', position: 'Liquidador', bossDni: '10998877', climateDone: false, performanceDone: false },
-    { dni: '42114455', name: 'Carlos Medina', area: 'Exportacion', position: 'Sectorista', bossDni: '10998877', climateDone: true, performanceDone: false },
-    { dni: '43889911', name: 'Lucia Rojas', area: 'Sistemas', position: 'Analista', bossDni: '10887766', climateDone: false, performanceDone: true },
-    { dni: '45667788', name: 'Miguel Salas', area: 'Contabilidad', position: 'Asistente', bossDni: '10776655', climateDone: true, performanceDone: true },
-  ];
-  protected workerDni = '40112233';
-  protected bossDni = '10998877';
-  protected hrDni = '70001122';
-  protected loginDni = '40112233';
+  protected readonly employees: PersonStatus[] = this.moduleContext.employees.map((employee) => ({
+    ...employee,
+    climateDone: Boolean(employee.climateDone),
+    performanceDone: Boolean(employee.performanceDone),
+  }));
+  protected workerDni = this.moduleContext.currentUser.dni;
+  protected bossDni = this.moduleContext.currentUser.dni;
+  protected hrDni = this.moduleContext.currentUser.dni;
+  protected loginDni = this.moduleContext.currentUser.dni;
   protected loginPassword = '';
   protected loginPortal: PortalRole = 'trabajador';
   protected activeCycle = 'Evaluacion anual 2026';
@@ -253,6 +251,12 @@ export class App {
     this.message.set('');
   }
 
+  private defaultViewForRole(role: PortalRole): ViewMode {
+    if (role === 'trabajador') return 'trabajador';
+    if (role === 'jefe') return 'jefe';
+    return 'rrhh';
+  }
+
   protected openPortal(next: ViewMode): void {
     this.setView(next);
   }
@@ -284,6 +288,7 @@ export class App {
   }
 
   protected logout(): void {
+    if (this.embeddedMode) return;
     this.loggedIn.set(false);
     this.loginPassword = '';
     this.setView('portal');
@@ -776,8 +781,12 @@ export class App {
   }
 
   private persist(kind: 'climate' | 'performance', payload: ClimateSubmission | PerformanceSubmission): void {
+    if (!this.apiBase) {
+      this.afterPersist(payload, 'Registro guardado localmente para la demo.');
+      return;
+    }
     this.saving.set(true);
-    this.http.post(`${apiBase}?action=${kind}`, payload).subscribe({
+    this.http.post(`${this.apiBase}?action=${kind}`, payload).subscribe({
       next: () => this.afterPersist(payload, 'Registro guardado en backend PHP.'),
       error: () => this.afterPersist(payload, 'Backend PHP no disponible; registro guardado localmente para la demo.'),
     });
@@ -807,7 +816,8 @@ export class App {
   private loadRecords(): void {
     const local = this.readLocalRecords();
     this.records.set(local);
-    this.http.get<(ClimateSubmission | PerformanceSubmission)[]>(`${apiBase}?action=records`).subscribe({
+    if (!this.apiBase) return;
+    this.http.get<(ClimateSubmission | PerformanceSubmission)[]>(`${this.apiBase}?action=records`).subscribe({
       next: (items) => {
         if (Array.isArray(items)) {
           const merged = [...items, ...local].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
