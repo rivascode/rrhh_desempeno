@@ -269,39 +269,46 @@
     }
 
     @if (loggedIn() && view() === 'jefe') {
-      <section class="access-panel">
-        <div>
-          <h2>Portal jefe</h2>
-          <p>El jefe ingresa con DNI, ve su equipo y evalua desempeno segun cargo y area.</p>
-        </div>
-        <label>DNI del jefe
-          <input name="bossDni" [(ngModel)]="bossDni" />
-        </label>
+      <section class="survey-dashboard">
+        @for (person of bossTeam(); track person.dni) {
+          <article class="worker-survey-card" [class.active]="evaluatingEmployeeDni === person.dni">
+            <div>
+              <h3>{{ person.name }}</h3>
+              <p>{{ person.position }} · {{ person.area }}</p>
+              <div class="survey-meta">
+                <span>{{ performanceStatus(person) }}</span>
+                <span>DNI {{ person.dni }}</span>
+                <span>Periodo {{ performanceGeneral['periodo'] }}</span>
+              </div>
+            </div>
+            <div class="worker-progress">
+              <div class="mini-bar"><i [style.width.%]="performanceStatus(person) === 'Completada' ? 100 : performanceStatus(person) === 'En curso' ? 50 : 0"></i></div>
+              <button class="primary" type="button" (click)="openPerformanceEvaluation(person)">
+                {{ performanceAction(person) }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <article class="panel">
+            <h2>Sin colaboradores asignados</h2>
+            <p>No hay colaboradores asociados a este DNI de jefe.</p>
+          </article>
+        }
       </section>
 
-      <article class="panel">
-        <h2>Equipo asignado</h2>
-        <div class="status-table">
-          <span>DNI</span><span>Trabajador</span><span>Area</span><span>Cargo</span><span>Estado evaluacion</span>
-          @for (person of bossTeam(); track person.dni) {
-            <b>{{ person.dni }}</b>
-            <strong>{{ person.name }}</strong>
-            <span>{{ person.area }}</span>
-            <span>{{ person.position }}</span>
-            <em [class.done]="person.performanceDone">{{ person.performanceDone ? 'Completada' : 'Pendiente' }}</em>
-          } @empty {
-            <p>No hay colaboradores asociados a este DNI de jefe.</p>
-          }
-        </div>
-      </article>
-
-      <form class="form-view" (ngSubmit)="submitPerformance()">
-        <div class="section-heading">
+      @if (evaluatingEmployeeDni) {
+      <div class="survey-fill-overlay">
+      <form class="form-view survey-fill-window" (ngSubmit)="submitPerformance()">
+        <div class="section-heading survey-fill-head">
           <div>
             <h2>Evaluacion de desempeno</h2>
             <p>Formato CONECTA para mandos medios: competencias, objetivos, potencial, capacitacion y feedback.</p>
           </div>
-          <span class="score-pill">{{ performancePreview() }}%</span>
+          <div class="worker-form-actions">
+            <span class="score-pill">{{ performancePreview() }}%</span>
+            <button class="ghost" type="button" (click)="savePerformanceDraft()">Guardar avance</button>
+            <button class="ghost" type="button" (click)="closePerformanceEvaluation()">Cerrar</button>
+          </div>
         </div>
 
         <div class="form-grid">
@@ -408,6 +415,8 @@
 
         <button class="primary" type="submit" [disabled]="saving()">Guardar evaluacion</button>
       </form>
+      </div>
+      }
     }
 
     @if (loggedIn() && activeRole() === 'rrhh' && view() === 'encuestas') {

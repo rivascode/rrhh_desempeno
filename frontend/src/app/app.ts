@@ -31,6 +31,7 @@ interface ClimateSubmission {
 
 interface PerformanceSubmission {
   type: 'performance';
+  employeeDni?: string;
   createdAt: string;
   general: Record<string, string>;
   scores: Record<string, number>;
@@ -215,6 +216,8 @@ export class App {
   };
   protected performanceScores: Record<string, number> = Object.fromEntries(competencies.map((item) => [item.id, 3]));
   protected performanceEvidence: Record<string, string> = {};
+  protected evaluatingEmployeeDni: string | null = null;
+  protected performanceDrafts: Record<string, boolean> = {};
   protected potential = 3;
   protected potentialComment = '';
   protected agreement = 'De acuerdo';
@@ -240,6 +243,7 @@ export class App {
     this.loadSurveyBuilder();
     this.loadSavedSurveySections();
     this.loadCompletedSurveyIds();
+    this.loadPerformanceDrafts();
     this.ensureSurveyAnswerDefaults();
     this.loadRecords();
   }
@@ -267,6 +271,7 @@ export class App {
 
     if (this.loginPortal === 'jefe') {
       this.bossDni = this.loginDni;
+      this.evaluatingEmployeeDni = null;
       this.setView('jefe');
     }
 
@@ -300,6 +305,38 @@ export class App {
 
   protected bossTeam(): PersonStatus[] {
     return this.employees.filter((employee) => employee.bossDni === this.bossDni);
+  }
+
+  protected openPerformanceEvaluation(person: PersonStatus): void {
+    this.evaluatingEmployeeDni = person.dni;
+    this.performanceGeneral['evaluado'] = person.name;
+    this.performanceGeneral['evaluador'] = `Jefe ${this.bossDni}`;
+    this.performanceGeneral['cargoEvaluado'] = person.position;
+    this.performanceGeneral['cargoEvaluador'] = 'Jefe evaluador';
+    this.performanceGeneral['area'] = person.area;
+    this.message.set('');
+  }
+
+  protected closePerformanceEvaluation(): void {
+    this.evaluatingEmployeeDni = null;
+    this.message.set('');
+  }
+
+  protected performanceStatus(person: PersonStatus): string {
+    if (person.performanceDone || this.isPerformanceSubmitted(person.dni)) return 'Completada';
+    return this.performanceDrafts[person.dni] ? 'En curso' : 'Pendiente';
+  }
+
+  protected performanceAction(person: PersonStatus): string {
+    if (person.performanceDone || this.isPerformanceSubmitted(person.dni)) return 'Ver evaluacion';
+    return this.performanceDrafts[person.dni] ? 'Continuar' : 'Evaluar';
+  }
+
+  protected savePerformanceDraft(): void {
+    if (!this.evaluatingEmployeeDni) return;
+    this.performanceDrafts = { ...this.performanceDrafts, [this.evaluatingEmployeeDni]: true };
+    localStorage.setItem('rrhh_performance_drafts', JSON.stringify(this.performanceDrafts));
+    this.message.set('Avance de evaluacion guardado.');
   }
 
   protected sendReminder(kind: 'climate' | 'performance'): void {
@@ -690,6 +727,7 @@ export class App {
   protected submitPerformance(): void {
     const payload: PerformanceSubmission = {
       type: 'performance',
+      employeeDni: this.evaluatingEmployeeDni ?? undefined,
       createdAt: new Date().toISOString(),
       general: { ...this.performanceGeneral },
       scores: { ...this.performanceScores },
@@ -754,6 +792,13 @@ export class App {
       localStorage.setItem('rrhh_worker_completed_surveys', JSON.stringify(this.completedSurveyIds));
       this.fillingSurveyId = null;
     }
+    if (payload.type === 'performance') {
+      if (payload.employeeDni) {
+        this.performanceDrafts = { ...this.performanceDrafts, [payload.employeeDni]: true };
+        localStorage.setItem('rrhh_performance_drafts', JSON.stringify(this.performanceDrafts));
+      }
+      this.evaluatingEmployeeDni = null;
+    }
     this.saving.set(false);
     this.message.set(message);
     this.view.set(this.activeRole());
@@ -795,6 +840,18 @@ export class App {
     } catch {
       this.completedSurveyIds = [];
     }
+  }
+
+  private loadPerformanceDrafts(): void {
+    try {
+      this.performanceDrafts = JSON.parse(localStorage.getItem('rrhh_performance_drafts') ?? '{}');
+    } catch {
+      this.performanceDrafts = {};
+    }
+  }
+
+  private isPerformanceSubmitted(employeeDni: string): boolean {
+    return this.records().some((record) => record.type === 'performance' && record.employeeDni === employeeDni);
   }
 
   private loadSurveyBuilder(): void {
