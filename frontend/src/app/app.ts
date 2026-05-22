@@ -20,6 +20,7 @@ type ResponseType = 'likert' | 'single_choice' | 'multiple_choice' | 'short_text
 
 interface ClimateSubmission {
   type: 'climate';
+  surveyId?: string;
   createdAt: string;
   employee: Record<string, string>;
   likert: Record<number, string>;
@@ -182,7 +183,9 @@ export class App {
   ];
   protected activeSurveyId = 'clima-laboral';
   protected editingSurvey = false;
+  protected fillingSurveyId: string | null = null;
   protected savedSurveySections: Record<string, string[]> = {};
+  protected completedSurveyIds: string[] = [];
 
   protected climateEmployee: Record<string, string> = {
     sede: 'CALLAO',
@@ -236,6 +239,7 @@ export class App {
   constructor() {
     this.loadSurveyBuilder();
     this.loadSavedSurveySections();
+    this.loadCompletedSurveyIds();
     this.ensureSurveyAnswerDefaults();
     this.loadRecords();
   }
@@ -256,6 +260,7 @@ export class App {
     if (this.loginPortal === 'trabajador') {
       this.workerDni = this.loginDni;
       this.activeSurveyId = this.activeWorkerSurveys()[0]?.id ?? this.activeSurveyId;
+      this.fillingSurveyId = null;
       this.ensureSurveyAnswerDefaults();
       this.setView('trabajador');
     }
@@ -313,7 +318,13 @@ export class App {
 
   protected selectWorkerSurvey(surveyId: string): void {
     this.activeSurveyId = surveyId;
+    this.fillingSurveyId = surveyId;
     this.ensureSurveyAnswerDefaults();
+    this.message.set('');
+  }
+
+  protected closeWorkerSurvey(): void {
+    this.fillingSurveyId = null;
     this.message.set('');
   }
 
@@ -330,6 +341,7 @@ export class App {
   }
 
   protected workerSurveyProgress(survey: SurveyDefinition): number {
+    if (this.isWorkerSurveyCompleted(survey.id)) return 100;
     const sections = this.surveySectionNames(survey);
     if (!sections.length) return 0;
     const saved = new Set(this.savedSurveySections[survey.id] ?? []);
@@ -347,6 +359,20 @@ export class App {
 
   protected isSurveySectionSaved(surveyId: string, section: string): boolean {
     return (this.savedSurveySections[surveyId] ?? []).includes(section);
+  }
+
+  protected workerSurveyStatus(survey: SurveyDefinition): string {
+    if (this.isWorkerSurveyCompleted(survey.id)) return 'Completada';
+    return this.workerSurveyProgress(survey) > 0 ? 'En curso' : 'Pendiente';
+  }
+
+  protected workerSurveyAction(survey: SurveyDefinition): string {
+    if (this.isWorkerSurveyCompleted(survey.id)) return 'Ver respuestas';
+    return this.workerSurveyProgress(survey) > 0 ? 'Continuar' : 'Llenar';
+  }
+
+  protected isWorkerSurveyCompleted(surveyId: string): boolean {
+    return this.completedSurveyIds.includes(surveyId);
   }
 
   protected processSummaries(): ProcessSummary[] {
@@ -645,8 +671,9 @@ export class App {
   protected submitClimate(): void {
     const payload: ClimateSubmission = {
       type: 'climate',
+      surveyId: this.activeSurvey().id,
       createdAt: new Date().toISOString(),
-      employee: { ...this.climateEmployee },
+      employee: { ...this.climateEmployee, dni: this.workerDni },
       likert: { ...this.climateLikert },
       scales: { ...this.climateScales },
       open: { ...this.climateOpen },
@@ -721,6 +748,12 @@ export class App {
   private afterPersist(payload: ClimateSubmission | PerformanceSubmission, message: string): void {
     this.records.update((items) => [payload, ...items]);
     localStorage.setItem('rrhh_records', JSON.stringify(this.records()));
+    if (payload.type === 'climate') {
+      const surveyId = payload.surveyId ?? 'clima-laboral';
+      this.completedSurveyIds = Array.from(new Set([...this.completedSurveyIds, surveyId]));
+      localStorage.setItem('rrhh_worker_completed_surveys', JSON.stringify(this.completedSurveyIds));
+      this.fillingSurveyId = null;
+    }
     this.saving.set(false);
     this.message.set(message);
     this.view.set(this.activeRole());
@@ -753,6 +786,14 @@ export class App {
       this.savedSurveySections = JSON.parse(localStorage.getItem('rrhh_worker_section_progress') ?? '{}');
     } catch {
       this.savedSurveySections = {};
+    }
+  }
+
+  private loadCompletedSurveyIds(): void {
+    try {
+      this.completedSurveyIds = JSON.parse(localStorage.getItem('rrhh_worker_completed_surveys') ?? '[]');
+    } catch {
+      this.completedSurveyIds = [];
     }
   }
 

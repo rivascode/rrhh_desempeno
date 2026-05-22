@@ -128,11 +128,12 @@
 
       <section class="survey-dashboard">
         @for (survey of activeWorkerSurveys(); track survey.id) {
-          <article class="worker-survey-card" [class.active]="activeSurveyId === survey.id">
+          <article class="worker-survey-card" [class.active]="fillingSurveyId === survey.id">
             <div>
               <h3>{{ survey.name }}</h3>
               <p>{{ survey.description }}</p>
               <div class="survey-meta">
+                <span>{{ workerSurveyStatus(survey) }}</span>
                 <span>{{ survey.questions.length }} preguntas</span>
                 <span>{{ surveySectionNames(survey).length }} secciones</span>
                 <span>{{ workerSurveyProgress(survey) }}% avanzado</span>
@@ -141,7 +142,7 @@
             <div class="worker-progress">
               <div class="mini-bar"><i [style.width.%]="workerSurveyProgress(survey)"></i></div>
               <button class="primary" type="button" (click)="selectWorkerSurvey(survey.id)">
-                {{ activeSurveyId === survey.id ? 'En curso' : 'Abrir' }}
+                {{ workerSurveyAction(survey) }}
               </button>
             </div>
           </article>
@@ -153,13 +154,17 @@
         }
       </section>
 
+      @if (fillingSurveyId) {
       <form class="form-view" (ngSubmit)="submitClimate()">
         <div class="section-heading">
           <div>
             <h2>{{ activeSurvey().name }}</h2>
             <p>Complete cada bloque y guarde la seccion para conservar el avance.</p>
           </div>
-          <span class="score-pill">{{ climatePreview() }}%</span>
+          <div class="worker-form-actions">
+            <span class="score-pill">{{ workerSurveyProgress(activeSurvey()) }}% avance</span>
+            <button class="ghost" type="button" (click)="closeWorkerSurvey()">Volver al listado</button>
+          </div>
         </div>
 
         <div class="form-grid">
@@ -274,6 +279,7 @@
 
         <button class="primary" type="submit" [disabled]="saving()">Enviar encuesta</button>
       </form>
+      }
     }
 
     @if (loggedIn() && view() === 'jefe') {
