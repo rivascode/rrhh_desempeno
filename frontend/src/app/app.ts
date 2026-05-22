@@ -182,6 +182,7 @@ export class App {
   ];
   protected activeSurveyId = 'clima-laboral';
   protected editingSurvey = false;
+  protected savedSurveySections: Record<string, string[]> = {};
 
   protected climateEmployee: Record<string, string> = {
     sede: 'CALLAO',
@@ -234,6 +235,7 @@ export class App {
 
   constructor() {
     this.loadSurveyBuilder();
+    this.loadSavedSurveySections();
     this.ensureSurveyAnswerDefaults();
     this.loadRecords();
   }
@@ -253,6 +255,8 @@ export class App {
 
     if (this.loginPortal === 'trabajador') {
       this.workerDni = this.loginDni;
+      this.activeSurveyId = this.activeWorkerSurveys()[0]?.id ?? this.activeSurveyId;
+      this.ensureSurveyAnswerDefaults();
       this.setView('trabajador');
     }
 
@@ -301,6 +305,48 @@ export class App {
 
   protected scheduleCycle(): void {
     this.reminderMessage = `Programacion creada para ${this.activeCycle}: apertura, recordatorio intermedio y cierre con reporte para RRHH.`;
+  }
+
+  protected activeWorkerSurveys(): SurveyDefinition[] {
+    return this.surveys.filter((survey) => survey.audience === 'Trabajador' && survey.status === 'Activa');
+  }
+
+  protected selectWorkerSurvey(surveyId: string): void {
+    this.activeSurveyId = surveyId;
+    this.ensureSurveyAnswerDefaults();
+    this.message.set('');
+  }
+
+  protected surveySectionNames(survey: SurveyDefinition): string[] {
+    const sections = new Set(survey.questions.filter((question) => question.responseType === 'likert').map((question) => question.section));
+    if (survey.questions.some((question) => question.responseType === 'scale')) sections.add('Escala 0-10');
+    if (survey.questions.some((question) => question.responseType === 'single_choice' || question.responseType === 'multiple_choice')) {
+      sections.add('Preguntas de seleccion');
+    }
+    if (survey.questions.some((question) => question.responseType === 'short_text' || question.responseType === 'long_text')) {
+      sections.add('Preguntas de texto');
+    }
+    return Array.from(sections);
+  }
+
+  protected workerSurveyProgress(survey: SurveyDefinition): number {
+    const sections = this.surveySectionNames(survey);
+    if (!sections.length) return 0;
+    const saved = new Set(this.savedSurveySections[survey.id] ?? []);
+    const completed = sections.filter((section) => saved.has(section)).length;
+    return Math.round((completed / sections.length) * 100);
+  }
+
+  protected saveSurveySection(surveyId: string, section: string): void {
+    const saved = new Set(this.savedSurveySections[surveyId] ?? []);
+    saved.add(section);
+    this.savedSurveySections = { ...this.savedSurveySections, [surveyId]: Array.from(saved) };
+    localStorage.setItem('rrhh_worker_section_progress', JSON.stringify(this.savedSurveySections));
+    this.message.set(`Seccion "${section}" guardada.`);
+  }
+
+  protected isSurveySectionSaved(surveyId: string, section: string): boolean {
+    return (this.savedSurveySections[surveyId] ?? []).includes(section);
   }
 
   protected processSummaries(): ProcessSummary[] {
@@ -699,6 +745,14 @@ export class App {
       return JSON.parse(localStorage.getItem('rrhh_records') ?? '[]');
     } catch {
       return [];
+    }
+  }
+
+  private loadSavedSurveySections(): void {
+    try {
+      this.savedSurveySections = JSON.parse(localStorage.getItem('rrhh_worker_section_progress') ?? '{}');
+    } catch {
+      this.savedSurveySections = {};
     }
   }
 

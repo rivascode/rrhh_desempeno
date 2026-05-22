@@ -4,13 +4,12 @@
     <div class="brand">
       <span class="brand-mark">RH</span>
       <div>
-        <strong>Portal RRHH</strong>
-        <small>Trabajador, jefe y RRHH</small>
+        <strong>{{ roleLabel() }}</strong>
+        <small>Sesion activa</small>
       </div>
     </div>
 
     <nav class="nav">
-      <button [class.active]="view() === 'portal'" (click)="setView('portal')">Inicio de portales</button>
       @if (loggedIn() && activeRole() === 'trabajador') {
         <button [class.active]="view() === 'trabajador'" (click)="setView('trabajador')">Portal trabajador</button>
       }
@@ -21,6 +20,7 @@
         <button [class.active]="view() === 'rrhh'" (click)="setView('rrhh')">Portal RRHH</button>
         <button [class.active]="view() === 'encuestas'" (click)="setView('encuestas')">Encuestas</button>
       }
+      <button class="logout-link" type="button" (click)="logout()">Cerrar sesion</button>
     </nav>
 
     <section class="source-card">
@@ -45,7 +45,7 @@
       <div class="notice">{{ message() }}</div>
     }
 
-    @if (view() === 'portal') {
+    @if (!loggedIn() && view() === 'portal') {
       <section class="login-layout">
         <div class="login-visual">
           <div class="visual-badge">RRHH</div>
@@ -79,12 +79,12 @@
             <span class="brand-mark">RH</span>
             <div>
               <strong>RRHH Desempeno</strong>
-              <small>Acceso seguro por rol</small>
+              <small>Acceso por rol</small>
             </div>
           </div>
           <span class="login-eyebrow">Ingreso al sistema</span>
           <h2>Bienvenido</h2>
-          <p>Seleccione el portal que corresponde a su rol e ingrese sus credenciales.</p>
+          <p>Seleccione el portal que corresponde a su rol e ingrese su DNI.</p>
 
           <label>Portal
             <select name="loginPortal" [(ngModel)]="loginPortal">
@@ -119,18 +119,45 @@
       <section class="access-panel">
         <div>
           <h2>Portal trabajador</h2>
-          <p>El trabajador accede con su DNI desde la web y completa solo la encuesta de clima laboral.</p>
+          <p>Revise sus encuestas activas, guarde avances por seccion y envie cuando termine.</p>
         </div>
         <label>DNI del trabajador
           <input name="workerDni" [(ngModel)]="workerDni" />
         </label>
       </section>
 
+      <section class="survey-dashboard">
+        @for (survey of activeWorkerSurveys(); track survey.id) {
+          <article class="worker-survey-card" [class.active]="activeSurveyId === survey.id">
+            <div>
+              <h3>{{ survey.name }}</h3>
+              <p>{{ survey.description }}</p>
+              <div class="survey-meta">
+                <span>{{ survey.questions.length }} preguntas</span>
+                <span>{{ surveySectionNames(survey).length }} secciones</span>
+                <span>{{ workerSurveyProgress(survey) }}% avanzado</span>
+              </div>
+            </div>
+            <div class="worker-progress">
+              <div class="mini-bar"><i [style.width.%]="workerSurveyProgress(survey)"></i></div>
+              <button class="primary" type="button" (click)="selectWorkerSurvey(survey.id)">
+                {{ activeSurveyId === survey.id ? 'En curso' : 'Abrir' }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <article class="panel">
+            <h2>Sin encuestas activas</h2>
+            <p>RRHH todavia no ha publicado encuestas para trabajadores.</p>
+          </article>
+        }
+      </section>
+
       <form class="form-view" (ngSubmit)="submitClimate()">
         <div class="section-heading">
           <div>
             <h2>{{ activeSurvey().name }}</h2>
-            <p>Formulario basado en las hojas ESTRUCTURA, RESPUESTAS y RESULTADOS del libro de clima laboral.</p>
+            <p>Complete cada bloque y guarde la seccion para conservar el avance.</p>
           </div>
           <span class="score-pill">{{ climatePreview() }}%</span>
         </div>
@@ -146,7 +173,12 @@
 
         @for (group of questionsByDimension(); track group.dimension) {
           <section class="question-group">
-            <h3>{{ group.dimension }}</h3>
+            <div class="section-title-row">
+              <h3>{{ group.dimension }}</h3>
+              <span [class.done]="isSurveySectionSaved(activeSurvey().id, group.dimension)">
+                {{ isSurveySectionSaved(activeSurvey().id, group.dimension) ? 'Guardada' : 'Pendiente' }}
+              </span>
+            </div>
             @for (question of group.questions; track question.id) {
               <div class="question-row">
                 <p><b>{{ question.id }}.</b> {{ question.text }}</p>
@@ -160,11 +192,17 @@
                 </div>
               </div>
             }
+            <button class="ghost inline" type="button" (click)="saveSurveySection(activeSurvey().id, group.dimension)">Guardar seccion</button>
           </section>
         }
 
         <section class="question-group">
-          <h3>Escala 0-10</h3>
+          <div class="section-title-row">
+            <h3>Escala 0-10</h3>
+            <span [class.done]="isSurveySectionSaved(activeSurvey().id, 'Escala 0-10')">
+              {{ isSurveySectionSaved(activeSurvey().id, 'Escala 0-10') ? 'Guardada' : 'Pendiente' }}
+            </span>
+          </div>
           @for (question of scaleSurveyQuestions(); track question.id) {
             <label class="scale-row">
               <span>{{ question.id }}. {{ question.text }}</span>
@@ -173,11 +211,17 @@
               <small>{{ question.lowLabel }} / {{ question.highLabel }}</small>
             </label>
           }
+          <button class="ghost inline" type="button" (click)="saveSurveySection(activeSurvey().id, 'Escala 0-10')">Guardar seccion</button>
         </section>
 
         @if (singleChoiceSurveyQuestions().length || multipleChoiceSurveyQuestions().length) {
           <section class="question-group">
-            <h3>Preguntas de seleccion</h3>
+            <div class="section-title-row">
+              <h3>Preguntas de seleccion</h3>
+              <span [class.done]="isSurveySectionSaved(activeSurvey().id, 'Preguntas de seleccion')">
+                {{ isSurveySectionSaved(activeSurvey().id, 'Preguntas de seleccion') ? 'Guardada' : 'Pendiente' }}
+              </span>
+            </div>
             @for (question of singleChoiceSurveyQuestions(); track question.id) {
               <div class="question-row">
                 <p><b>{{ question.id }}.</b> {{ question.text }}</p>
@@ -204,11 +248,17 @@
                 </div>
               </div>
             }
+            <button class="ghost inline" type="button" (click)="saveSurveySection(activeSurvey().id, 'Preguntas de seleccion')">Guardar seccion</button>
           </section>
         }
 
         <section class="question-group">
-          <h3>Preguntas de texto</h3>
+          <div class="section-title-row">
+            <h3>Preguntas de texto</h3>
+            <span [class.done]="isSurveySectionSaved(activeSurvey().id, 'Preguntas de texto')">
+              {{ isSurveySectionSaved(activeSurvey().id, 'Preguntas de texto') ? 'Guardada' : 'Pendiente' }}
+            </span>
+          </div>
           @for (question of textSurveyQuestions(); track question.id) {
             <label>
               {{ question.id }}. {{ question.text }}
@@ -219,6 +269,7 @@
               }
             </label>
           }
+          <button class="ghost inline" type="button" (click)="saveSurveySection(activeSurvey().id, 'Preguntas de texto')">Guardar seccion</button>
         </section>
 
         <button class="primary" type="submit" [disabled]="saving()">Enviar encuesta</button>
