@@ -155,26 +155,27 @@
       </section>
 
       @if (fillingSurveyId) {
-      <form class="form-view" (ngSubmit)="submitClimate()">
-        <div class="section-heading">
-          <div>
-            <h2>{{ activeSurvey().name }}</h2>
-            <p>Complete cada bloque y guarde la seccion para conservar el avance.</p>
+      <div class="survey-fill-overlay">
+        <form class="form-view survey-fill-window" (ngSubmit)="submitClimate()">
+          <div class="section-heading survey-fill-head">
+            <div>
+              <h2>{{ activeSurvey().name }}</h2>
+              <p>Complete cada bloque y guarde la seccion para conservar el avance.</p>
+            </div>
+            <div class="worker-form-actions">
+              <span class="score-pill">{{ workerSurveyProgress(activeSurvey()) }}% avance</span>
+              <button class="ghost" type="button" (click)="closeWorkerSurvey()">Cerrar</button>
+            </div>
           </div>
-          <div class="worker-form-actions">
-            <span class="score-pill">{{ workerSurveyProgress(activeSurvey()) }}% avance</span>
-            <button class="ghost" type="button" (click)="closeWorkerSurvey()">Volver al listado</button>
-          </div>
-        </div>
 
-        <div class="form-grid">
-          <label>Sede <input name="sede" [(ngModel)]="climateEmployee['sede']" /></label>
-          <label>Area <input name="area" [(ngModel)]="climateEmployee['area']" required /></label>
-          <label>Puesto <input name="puesto" [(ngModel)]="climateEmployee['puesto']" required /></label>
-          <label>Antiguedad <input name="antiguedad" [(ngModel)]="climateEmployee['antiguedad']" /></label>
-          <label>Sexo <input name="sexo" [(ngModel)]="climateEmployee['sexo']" /></label>
-          <label>Edad <input name="edad" [(ngModel)]="climateEmployee['edad']" /></label>
-        </div>
+          <div class="form-grid">
+            <label>Sede <input name="sede" [(ngModel)]="climateEmployee['sede']" /></label>
+            <label>Area <input name="area" [(ngModel)]="climateEmployee['area']" required /></label>
+            <label>Puesto <input name="puesto" [(ngModel)]="climateEmployee['puesto']" required /></label>
+            <label>Antiguedad <input name="antiguedad" [(ngModel)]="climateEmployee['antiguedad']" /></label>
+            <label>Sexo <input name="sexo" [(ngModel)]="climateEmployee['sexo']" /></label>
+            <label>Edad <input name="edad" [(ngModel)]="climateEmployee['edad']" /></label>
+          </div>
 
         @for (group of questionsByDimension(); track group.dimension) {
           <section class="question-group">
@@ -277,8 +278,9 @@
           <button class="ghost inline" type="button" (click)="saveSurveySection(activeSurvey().id, 'Preguntas de texto')">Guardar seccion</button>
         </section>
 
-        <button class="primary" type="submit" [disabled]="saving()">Enviar encuesta</button>
-      </form>
+          <button class="primary" type="submit" [disabled]="saving()">Enviar encuesta</button>
+        </form>
+      </div>
       }
     }
 
